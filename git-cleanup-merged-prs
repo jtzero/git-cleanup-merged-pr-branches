@@ -1,0 +1,233 @@
+#!/usr/bin/env bash
+#
+# reqs: realpath, jq
+# TODO pass VERBOSE around instead of global
+
+set -Eeuo pipefail
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  GCMPR_DIR="${0:A:h}"
+  IS_ZSH=1
+else
+  GCMPR_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
+  IS_BASH=1
+fi
+
+PREVIOUS_SHA="${1:-}"
+NEXT_SHA="${2:-}"
+BRANCH_OR_FILES="${3:-}"
+
+config_file_path() {
+  echo "$(git rev-parse --show-toplevel)/.git/info/cleanup"
+}
+
+config() {
+  local -r config_filepath="$(config_file_path)"
+  if [ -f "${config_filepath}"  ]; then
+    cat ${config_filepath}
+  else
+    echo ""
+  fi
+}
+
+excluded_by_config() {
+  (config | grep 'exclude=' || [[ $? == 1 ]]) | cut -d'=' -f2
+}
+
+get_branches() {
+  local config_exclusions="${1:-}"
+  local -r current_branch="$(git branch --show-current)"
+  local -r current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>&1)"
+  if [[ "${current_remote_branch_parse}" == "fatal: no upstream configured for branch"* ]]; then
+    local current_branch_with_remote=""
+  else
+    local current_branch_with_remote="${current_remote_branch_parse}:${current_branch}"
+  fi
+  local -r default_remote="$(git remote | head -n1)"
+  local -r default_branch="$(git remote show "${default_remote}" | grep 'HEAD' | cut -d":" -f2 | tr -d ' ')"
+
+  if [ "${config_exclusions}" = "" ]; then
+    config_exclusions=" "
+  fi
+
+  local branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" | \
+    grep -v "${default_remote}/${default_branch}" | grep -v -E "${config_exclusions}" )"
+  printf '%s\n' "${branches_to_check}"
+}
+
+join_by() {
+  local d=${1-} f=${2-}
+  if shift 2; then
+    printf %s "$f" "${@/#/$d}"
+  fi
+}
+
+available_platforms() {
+  local dir="${1}"
+  printf "%s" "$(join_by '|' $(find "${dir}" -mindepth 1 -maxdepth 1 -exec basename {} \; | cut -d '.' -f1))"
+}
+
+query_vcs_platform() {
+  local platform_dir="${1}"
+  local platform="$(git remote -v | head -n 1 | grep -o -E "$(available_platforms "${platform_dir}")")"
+  if [ -z "${platform}" ]; then
+    printf '%s::%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
+  else
+    printf '%s' "found:${platform}"
+  fi
+}
+
+clean_pr_merged_branches() {
+  local branches_to_check="${1}"
+  local interactive="${2:-}"
+  local verbose="${3:-}"
+
+  local platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms")"
+
+  local result="$(cut -d':' -f1 <<< "${platform_query_result}")"
+  local platform="$(cut -d':' -f2 <<< "${platform_query_result}")"
+
+
+  if [ "${result}" = "not_found" ]; then
+    printf '%s' "${platform}"
+    exit 22
+  fi
+  . "${GCMPR_DIR}/platforms/${platform}.sh"
+  local type_result="$(type pre_init_hook 2>&1)"
+  if ! (echo "${type_result}" | grep -sq 'not found') ; then
+    pre_init_hook
+  fi
+
+  local toDelete=()
+  local toDeleteMessages=()
+  for remote_branch_and_local_branch in $branches_to_check
+  do
+    local remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
+    local local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
+    local states="$(get_states "${remote_branch}")"
+
+    local had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
+    if [ "${had_a_pr}" = "true" ]; then
+      local any_open_statuses="$(get_any_open_states "${states}")"
+      if [ "${any_open_statuses}" = "false" ]; then
+        local only_completed="$(get_only_completed "${states}")"
+        if [ "${only_completed}" = "true" ]; then
+          local message="${local_branch} would be deleted"
+          if [ "${verbose}" = "true" ]; then
+            toDeleteMessages[${#toDeleteMessages[@]}]="${message}:${states}"
+          else
+            toDeleteMessages[${#toDeleteMessages[@]}]="${message}"
+          fi
+          toDelete[${#toDelete[@]}]="${local_branch}"
+        else
+          [ "${verbose}" = "true" ] && printf '%s\n' "${remote_branch_and_local_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting:${states}"
+        fi
+      else
+        [ "${verbose}" = "true" ] && printf '%s\n' "${remote_branch_and_local_branch} has open pr's, not deleting:${states}"
+      fi
+    else
+      [ "${verbose}" = "true" ] && printf '%s\n' "${remote_branch_and_local_branch} never had a pr, not deleting:${states}"
+    fi
+  done
+  if [ ${#toDelete[@]} -gt 0 ]; then
+    printf '%s\n' "${toDeleteMessages[@]}"
+    interactive_delete "${toDelete[@]}"
+  fi
+}
+
+ask() {
+  local question="${1}"
+  local apply='n'
+  exec < /dev/tty
+  if [ "${ZSH:-}" ]; then
+    read "${question}" apply
+  else
+    read -p "${question}" apply
+  fi
+  printf "%s" "${apply}"
+}
+
+interactive_delete() {
+  local toDelete=("$@")
+  local apply='n'
+  if [ "${interactive}" ]; then
+    apply="$(ask 'apply changes? (y/n/p) ')"
+    if [ "${apply}" = "y" ]; then
+      delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
+    elif [ "${apply}" = "p" ] ; then
+      for branch in "${toDelete[@]}"
+      do
+        local should_delete='n'
+        should_delete="$(ask "${branch}:delete? (y/n)")"
+        if [ "${should_delete}" = "y" ]; then
+          delete_branches "${should_delete}"
+        else
+          if [ "${VERBOSE:-}" = "true" ]; then
+            printf '%s\n' "not deleting...${branch}"
+          fi
+        fi
+      done
+    fi
+  fi
+}
+
+delete_branches() {
+  local toDelete=("$@")
+  git branch -D ${toDelete[@]}
+}
+
+interactive_help() {
+  printf '%s\n' 'Interactive options: (case sensitive)'
+  printf '\t%s\n' 'y: yes'
+  printf '\t%s\n' 'n: no'
+  printf '\t%s\n' 'p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p'
+  printf '\t%s\n' 'h: print this help'
+}
+
+help() {
+  printf '%s\n' 'usage: git-cleanup-merged-prs $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-prs help'
+  printf '\t%s\n' 'All arguments are required however the first two can be empty strings.'
+  printf '\t%s\n' '"...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."'
+  printf '\t%s\n' 'Further explination of arguments is here https://git-scm.com/docs/githooks#_post_checkout'
+  interactive_help
+  printf '%s\n' 'Variables: '
+  printf '\t%s\n' 'SKIP_CLEANUP_MERGED_PRS: if set to true this script will skip execution'
+  printf '\t%s\n' 'VERBOSE: if set to true this script will print more information as it runs'
+}
+
+run() {
+  local branch_or_files="${1}"
+  local config_exclusions="${2}"
+  local interactive="${3:-true}"
+  local skip_cleanup_merged_prs="${4:-false}"
+  local verbose="${5:-false}"
+  local interactive_rebase_in_progress=false
+
+  if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -qiE 'rebase.*interactive' ; then
+    interactive_rebase_in_progress=true
+  fi
+
+  if [ "${verbose}" = "true" ]; then
+    if [ "${config_exclusions}" != "" ]; then
+      printf '%s\n' "items excluded via config($(config_file_path)):${config_exclusions}:"
+    fi
+  fi
+  if [ "${skip_cleanup_merged_prs}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ] ; then
+    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${interactive}" "${verbose}"
+  else
+    if [ "${verbose}" = "true" ]; then
+      printf '%s\n' "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PRS:${skip_cleanup_merged_prs:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
+    fi
+  fi
+}
+
+config_exclusions="$(excluded_by_config)"
+
+case "${PREVIOUS_SHA}" in
+  help)
+    help
+    ;;
+  *)
+    run "${BRANCH_OR_FILES}" "${config_exclusions}" "${INTERACTIVE:-true}" "${SKIP_CLEANUP_MERGED_PRS:-false}" "${VERBOSE:-false}"
+    ;;
+esac
