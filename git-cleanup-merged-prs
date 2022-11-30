@@ -78,6 +78,7 @@ query_vcs_platform() {
   local -r platform_dir="${1}"
   local -r platform="$(git remote -v | head -n 1 | grep -o -E "$(available_platforms "${platform_dir}")")"
   if [ -z "${platform}" ]; then
+    # shellcheck disable=SC2016
     printf '%s::%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
   else
     printf '%s' "found:${platform}"
@@ -184,22 +185,29 @@ delete_branches() {
 }
 
 interactive_help() {
-  printf '%s\n' 'Interactive options: (case sensitive)'
-  printf '\t%s\n' 'y: yes'
-  printf '\t%s\n' 'n: no'
-  printf '\t%s\n' 'p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p'
-  printf '\t%s\n' 'h: print this help'
+  # shellcheck disable=SC2006
+  cat <<-'EOS'
+  Interactive options: (case sensitive)
+    y: yes
+    n: no
+    p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p
+    h: print this help
+EOS
 }
 
 help() {
-  printf '%s\n' 'usage: git-cleanup-merged-prs $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-prs help'
-  printf '\t%s\n' 'All arguments are required however the first two can be empty strings.'
-  printf '\t%s\n' '"...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."'
-  printf '\t%s\n' 'Further explination of arguments is here https://git-scm.com/docs/githooks#_post_checkout'
+  cat <<-'EOS'
+usage: git-cleanup-merged-prs $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-prs help'
+    All arguments are required however the first two can be empty strings.
+    "...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."
+    Further explination of arguments is here https://git-scm.com/docs/githooks#_post_checkout
+EOS
   interactive_help
-  printf '%s\n' 'Variables: '
-  printf '\t%s\n' 'SKIP_CLEANUP_MERGED_PRS: if set to true this script will skip execution'
-  printf '\t%s\n' 'VERBOSE: if set to true this script will print more information as it runs'
+  cat <<-'EOS'
+  Variables:
+    SKIP_CLEANUP_MERGED_PRS: if set to true this script will skip execution
+    VERBOSE: if set to true this script will print more information as it runs
+EOS
 }
 
 run() {
