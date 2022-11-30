@@ -9,6 +9,9 @@ if [ -z "${BASH_SOURCE[0]:-}" ]; then
   GCMPR_DIR="${0:A:h}"
   IS_ZSH=1
 else
+  if ! command -v realpath 2>&1 >/dev/null ; then
+    exit 1
+  fi
   GCMPR_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
   IS_BASH=1
 fi
