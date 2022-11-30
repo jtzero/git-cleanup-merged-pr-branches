@@ -7,16 +7,19 @@ set -Eeuo pipefail
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
   GCMPR_DIR="${0:A:h}"
+  # shellcheck disable=SC2034
   IS_ZSH=1
 else
-  if ! command -v realpath 2>&1 >/dev/null ; then
+  if ! command -v realpath >/dev/null 2>&1; then
     exit 1
   fi
-  GCMPR_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
+  GCMPR_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  # shellcheck disable=SC2034
   IS_BASH=1
 fi
 
 PREVIOUS_SHA="${1:-}"
+# shellcheck disable=SC2034
 NEXT_SHA="${2:-}"
 BRANCH_OR_FILES="${3:-}"
 
@@ -26,7 +29,8 @@ config_file_path() {
 
 config() {
   local -r config_filepath="$(config_file_path)"
-  if [ -f "${config_filepath}"  ]; then
+  if [ -f "${config_filepath}" ]; then
+    # shellcheck disable=SC2086
     cat ${config_filepath}
   else
     echo ""
@@ -40,7 +44,7 @@ excluded_by_config() {
 get_branches() {
   local config_exclusions="${1:-}"
   local -r current_branch="$(git branch --show-current)"
-  local -r current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>&1)"
+  local -r current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>&1)"
   if [[ "${current_remote_branch_parse}" == "fatal: no upstream configured for branch"* ]]; then
     local current_branch_with_remote=""
   else
@@ -53,8 +57,8 @@ get_branches() {
     config_exclusions=" "
   fi
 
-  local branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" | \
-    grep -v "${default_remote}/${default_branch}" | grep -v -E "${config_exclusions}" )"
+  local -r branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" |
+    grep -v "${default_remote}/${default_branch}" | grep -v -E "${config_exclusions}")"
   printf '%s\n' "${branches_to_check}"
 }
 
@@ -67,12 +71,12 @@ join_by() {
 
 available_platforms() {
   local dir="${1}"
-  printf "%s" "$(join_by '|' $(find "${dir}" -mindepth 1 -maxdepth 1 -exec basename {} \; | cut -d '.' -f1))"
+  printf "%s" "$(join_by '|' "$(find "${dir}" -mindepth 1 -maxdepth 1 -exec basename {} \; | cut -d '.' -f1)")"
 }
 
 query_vcs_platform() {
-  local platform_dir="${1}"
-  local platform="$(git remote -v | head -n 1 | grep -o -E "$(available_platforms "${platform_dir}")")"
+  local -r platform_dir="${1}"
+  local -r platform="$(git remote -v | head -n 1 | grep -o -E "$(available_platforms "${platform_dir}")")"
   if [ -z "${platform}" ]; then
     printf '%s::%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
   else
@@ -85,35 +89,34 @@ clean_pr_merged_branches() {
   local interactive="${2:-}"
   local verbose="${3:-}"
 
-  local platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms")"
+  local -r platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms")"
 
-  local result="$(cut -d':' -f1 <<< "${platform_query_result}")"
-  local platform="$(cut -d':' -f2 <<< "${platform_query_result}")"
-
+  local -r result="$(cut -d':' -f1 <<<"${platform_query_result}")"
+  local -r platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
 
   if [ "${result}" = "not_found" ]; then
     printf '%s' "${platform}"
     exit 22
   fi
+  #shellcheck source=/dev/null
   . "${GCMPR_DIR}/platforms/${platform}.sh"
-  local type_result="$(type pre_init_hook 2>&1)"
-  if ! (echo "${type_result}" | grep -sq 'not found') ; then
+  local -r type_result="$(type pre_init_hook 2>&1)"
+  if ! (echo "${type_result}" | grep -sq 'not found'); then
     pre_init_hook
   fi
 
   local toDelete=()
   local toDeleteMessages=()
-  for remote_branch_and_local_branch in $branches_to_check
-  do
-    local remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
-    local local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
-    local states="$(get_states "${remote_branch}")"
+  for remote_branch_and_local_branch in $branches_to_check; do
+    local -r remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
+    local -r local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
+    local -r states="$(get_states "${remote_branch}")"
 
-    local had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
+    local -r had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
     if [ "${had_a_pr}" = "true" ]; then
-      local any_open_statuses="$(get_any_open_states "${states}")"
+      local -r any_open_statuses="$(get_any_open_states "${states}")"
       if [ "${any_open_statuses}" = "false" ]; then
-        local only_completed="$(get_only_completed "${states}")"
+        local -r only_completed="$(get_only_completed "${states}")"
         if [ "${only_completed}" = "true" ]; then
           local message="${local_branch} would be deleted"
           if [ "${verbose}" = "true" ]; then
@@ -141,11 +144,12 @@ clean_pr_merged_branches() {
 ask() {
   local question="${1}"
   local apply='n'
-  exec < /dev/tty
+  exec </dev/tty
   if [ "${ZSH:-}" ]; then
-    read "?${question}" apply
+    # shellcheck disable=SC2229
+    read -r "?${question}" apply
   else
-    read -p "${question}" apply
+    read -rp "${question}" apply
   fi
   printf "%s" "${apply}"
 }
@@ -157,9 +161,8 @@ interactive_delete() {
     apply="$(ask 'apply changes? (y/n/p) ')"
     if [ "${apply}" = "y" ]; then
       delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
-    elif [ "${apply}" = "p" ] ; then
-      for branch in "${toDelete[@]}"
-      do
+    elif [ "${apply}" = "p" ]; then
+      for branch in "${toDelete[@]}"; do
         local should_delete='n'
         should_delete="$(ask "${branch}:delete? (y/n)")"
         if [ "${should_delete}" = "y" ]; then
@@ -176,6 +179,7 @@ interactive_delete() {
 
 delete_branches() {
   local toDelete=("$@")
+  # shellcheck disable=SC2068
   git branch -D ${toDelete[@]}
 }
 
@@ -206,7 +210,7 @@ run() {
   local verbose="${5:-false}"
   local interactive_rebase_in_progress=false
 
-  if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -qiE 'rebase.*interactive' ; then
+  if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -qiE 'rebase.*interactive'; then
     interactive_rebase_in_progress=true
   fi
 
@@ -215,7 +219,7 @@ run() {
       printf '%s\n' "items excluded via config($(config_file_path)):${config_exclusions}:"
     fi
   fi
-  if [ "${skip_cleanup_merged_prs}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ] ; then
+  if [ "${skip_cleanup_merged_prs}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
     clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${interactive}" "${verbose}"
   else
     if [ "${verbose}" = "true" ]; then
@@ -227,10 +231,10 @@ run() {
 config_exclusions="$(excluded_by_config)"
 
 case "${PREVIOUS_SHA}" in
-  help)
-    help
-    ;;
-  *)
-    run "${BRANCH_OR_FILES}" "${config_exclusions}" "${INTERACTIVE:-true}" "${SKIP_CLEANUP_MERGED_PRS:-false}" "${VERBOSE:-false}"
-    ;;
+help)
+  help
+  ;;
+*)
+  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${INTERACTIVE:-true}" "${SKIP_CLEANUP_MERGED_PRS:-false}" "${VERBOSE:-false}"
+  ;;
 esac

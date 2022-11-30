@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  GIT_CLEANUP_BIN_DIR="${0:A:h}"
+else
+  GIT_CLEANUP_BIN_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+fi
+
+old_pwd="${PWD}"
+
+GIT_CLEANUP_ROOT="$(dirname "${GIT_CLEANUP_BIN_DIR}")"
+
+cd "${GIT_CLEANUP_ROOT}" || exit 1
+for file in $(shfmt -f .); do
+  shfmt -w "${file}"
+done
+cd "${old_pwd}" || exit 1

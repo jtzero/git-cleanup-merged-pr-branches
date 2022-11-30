@@ -1,4 +1,5 @@
-
+#!/usr/bin/env bash
+# shellcheck disable=SC2034
 COMPLETED_STATES=('MERGED' 'CLOSED')
 
 pre_init_hook() {
@@ -7,9 +8,9 @@ pre_init_hook() {
   status="$(gh auth status 2>&1)"
   exit_code="$?"
   set -e
-  if [ "${exit_code}" != "0" ] ; then
+  if [ "${exit_code}" != "0" ]; then
     printf '%s' "${status}"
-    exec < /dev/tty
+    exec </dev/tty
     gh auth login || exit 1
   fi
 }
@@ -23,11 +24,11 @@ get_states() {
 }
 
 get_any_open_states() {
-  local states="${@}"
+  local states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state == "OPEN")) | length > 0'
 }
 
 get_only_completed() {
-  local states="${@}"
+  local states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state != "MERGED" and .state != "CLOSED")) | length == 0'
 }

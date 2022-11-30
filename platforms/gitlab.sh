@@ -1,10 +1,12 @@
+#!/usr/bin/env bash
 
+# shellcheck disable=SC2034
 COMPLETED_STATES=('merged' 'closed')
 
 pre_init_hook() {
-  local -r has_errors="$(glab auth status 2>&1 |grep 'x')"
+  local -r has_errors="$(glab auth status 2>&1 | grep 'x')"
   if [ -n "${has_errors}" ]; then
-    exec < /dev/tty
+    exec </dev/tty
     glab auth login || exit 1
   fi
 }
@@ -15,11 +17,11 @@ get_states() {
 }
 
 get_any_open_states() {
-  local -r states="${@}"
+  local -r states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state == "opened")) | length > 0'
 }
 
 get_only_completed() {
-  local -r states="${@}"
+  local -r states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state != "merged" and .state != "closed")) | length == 0'
 }
