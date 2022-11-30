@@ -163,7 +163,7 @@ interactive_delete() {
         local should_delete='n'
         should_delete="$(ask "${branch}:delete? (y/n)")"
         if [ "${should_delete}" = "y" ]; then
-          delete_branches "${should_delete}"
+          delete_branches "${branch}"
         else
           if [ "${VERBOSE:-}" = "true" ]; then
             printf '%s\n' "not deleting...${branch}"
