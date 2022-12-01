@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# reqs: realpath, jq
-# TODO pass VERBOSE around instead of global
+# reqs: realpath
+# TODO pass GCMPR_VERBOSE around instead of global
 set -Eeuo pipefail
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
@@ -21,6 +21,10 @@ PREVIOUS_SHA="${1:-}"
 # shellcheck disable=SC2034
 NEXT_SHA="${2:-}"
 BRANCH_OR_FILES="${3:-}"
+
+if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
+  set -x
+fi
 
 config_file_path() {
   echo "$(git rev-parse --show-toplevel)/.git/info/cleanup"
@@ -63,9 +67,7 @@ get_branches() {
 
 join_by() {
   local d=${1-} f=${2-}
-  if shift 2; then
-    printf %s "$f" "${@/#/$d}"
-  fi
+  printf %s "${f//$'\n'/$d}"
 }
 
 available_platforms() {
@@ -76,10 +78,10 @@ available_platforms() {
 query_vcs_platform() {
   local -r platform_dir="${1}"
   local -r remote="${2}"
-  local -r platform="$(git remote -v | grep 'push' | grep "${remote}" | grep -o -E "$(available_platforms "${platform_dir}")")"
+  local -r platform="$(git remote -v | grep 'push' | grep "${remote}" | grep -o -E "$(available_platforms "${platform_dir}")" | head -n1)"
   if [ -z "${platform}" ]; then
     # shellcheck disable=SC2016
-    printf '%s::%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
+    printf '%s:%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
   else
     printf '%s' "found:${platform}"
   fi
@@ -87,7 +89,7 @@ query_vcs_platform() {
 
 clean_pr_merged_branches() {
   local branches_to_check="${1}"
-  local interactive="${2:-}"
+  local auto_apply="${2:-false}"
   local verbose="${3:-}"
 
   local toDelete=()
@@ -102,14 +104,14 @@ clean_pr_merged_branches() {
     local -r result="$(cut -d':' -f1 <<<"${platform_query_result}")"
     local -r platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
 
+    if [ "${result}" = "not_found" ]; then
+      printf '%s' "${platform} in ${GCMPR_DIR}/platforms/" "$(ls "${GCMPR_DIR}/platforms/")"
+      exit 22
+    fi
+
     #TODO instead of sourcing make this a callable script
     #shellcheck source=/dev/null
     . "${GCMPR_DIR}/platforms/${platform}.sh"
-
-    if [ "${result}" = "not_found" ]; then
-      printf '%s' "${platform}"
-      exit 22
-    fi
 
     local -r type_result="$(type pre_init_hook 2>&1)"
     if ! (echo "${type_result}" | grep -sq 'not found'); then
@@ -143,7 +145,7 @@ clean_pr_merged_branches() {
   done
   if [ ${#toDelete[@]} -gt 0 ]; then
     printf '%s\n' "${toDeleteMessages[@]}"
-    interactive_delete "${toDelete[@]}"
+    interactive_delete "${auto_apply}" "${toDelete[@]}"
   fi
 }
 
@@ -161,25 +163,28 @@ ask() {
 }
 
 interactive_delete() {
-  local toDelete=("$@")
+  local -r auto_apply="${1}"
+  local toDelete=("${@:2}")
   local apply='n'
-  if [ "${interactive}" ]; then
+  if [ "${auto_apply}" = "true" ]; then
+    apply='y'
+  else
     apply="$(ask 'apply changes? (y/n/p) ')"
-    if [ "${apply}" = "y" ]; then
-      delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
-    elif [ "${apply}" = "p" ]; then
-      for branch in "${toDelete[@]}"; do
-        local should_delete='n'
-        should_delete="$(ask "${branch}:delete? (y/n)")"
-        if [ "${should_delete}" = "y" ]; then
-          delete_branches "${branch}"
-        else
-          if [ "${VERBOSE:-}" = "true" ]; then
-            printf '%s\n' "not deleting...${branch}"
-          fi
+  fi
+  if [ "${apply}" = "y" ]; then
+    delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
+  elif [ "${apply}" = "p" ]; then
+    for branch in "${toDelete[@]}"; do
+      local should_delete='n'
+      should_delete="$(ask "${branch}:delete? (y/n)")"
+      if [ "${should_delete}" = "y" ]; then
+        delete_branches "${branch}"
+      else
+        if [ "${GCMPR_VERBOSE:-}" = "true" ]; then
+          printf '%s\n' "not deleting...${branch}"
         fi
-      done
-    fi
+      fi
+    done
   fi
 }
 
@@ -211,14 +216,14 @@ EOS
   cat <<-'EOS'
   Variables:
     SKIP_CLEANUP_MERGED_PRS: if set to true this script will skip execution
-    VERBOSE: if set to true this script will print more information as it runs
+    GCMPR_VERBOSE: if set to true this script will print more information as it runs
 EOS
 }
 
 run() {
   local branch_or_files="${1}"
   local config_exclusions="${2}"
-  local interactive="${3:-true}"
+  local auto_apply="${3:-false}"
   local skip_cleanup_merged_prs="${4:-false}"
   local verbose="${5:-false}"
   local interactive_rebase_in_progress=false
@@ -233,7 +238,7 @@ run() {
     fi
   fi
   if [ "${skip_cleanup_merged_prs}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
-    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${interactive}" "${verbose}"
+    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}"
   else
     if [ "${verbose}" = "true" ]; then
       printf '%s\n' "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PRS:${skip_cleanup_merged_prs:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
@@ -248,6 +253,6 @@ help)
   help
   ;;
 *)
-  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${INTERACTIVE:-true}" "${SKIP_CLEANUP_MERGED_PRS:-false}" "${VERBOSE:-false}"
+  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
   ;;
 esac

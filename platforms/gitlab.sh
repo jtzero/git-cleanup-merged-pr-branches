@@ -3,11 +3,20 @@
 # shellcheck disable=SC2034
 COMPLETED_STATES=('merged' 'closed')
 
+TOKEN_FILE=""
+if [ -f "${GCMPR_FILE_TOKEN:-}" ]; then
+  TOKEN_FILE="${GCMPR_FILE_TOKEN}"
+fi
+
 pre_init_hook() {
   local -r has_errors="$(glab auth status 2>&1 | grep 'x')"
   if [ -n "${has_errors}" ]; then
-    exec </dev/tty
-    glab auth login || exit 1
+    if [ -f "${TOKEN_FILE}" ]; then
+      glab auth login --stdin <"${TOKEN_FILE}" || exit 1
+    else
+      exec </dev/tty
+      glab auth login || exit 1
+    fi
   fi
 }
 

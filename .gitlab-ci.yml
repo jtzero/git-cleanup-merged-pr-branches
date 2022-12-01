@@ -16,24 +16,40 @@
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
+cache:
+  paths:
+    - .asdf/
+
 stages:          # List of stages for jobs, and their order of execution
   - test
 
-integration-tests-job:   # This job also runs in the test stage.
-  stage: test    # It can run at the same time as unit-test-job (in parallel).
+integration-tests:
+  stage: test
   script:
-    - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.2
+    - apt-get update -y && apt-get upgrade -y gettext
+    - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
+    - ln -nfs "${PWD}/.asdf" ~/.asdf
     - . $HOME/.asdf/asdf.sh
-    - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {}
+    - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
     - bats tests
 
-lint-test-job:   # This job also runs in the test stage.
-  stage: test    # It can run at the same time as unit-test-job (in parallel).
+smoke-tests:
+  stage: test
+  variables:
+    GCMPR_FILE_TOKEN: /tmp/GCMPR_TOKEN
   script:
-    - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.2
+    - echo "${GCMPR_TOKEN}" > "${GCMPR_FILE_TOKEN}"
+    - ./tests/ci-bootstrap.sh
+
+lint-test:
+  stage: test
+  script:
+    - apt-get update -y && apt-get upgrade -y gettext
+    - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
+    - ln -nfs "${PWD}/.asdf" ~/.asdf
     - . $HOME/.asdf/asdf.sh
-    - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {}
+    - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
     - shellcheck -s bash -x git-cleanup-merged-prs -P platforms/
-    - shfmt -d .
+    - shfmt -d git-cleanup-merged-prs platforms
