@@ -143,7 +143,7 @@ ask() {
   local apply='n'
   exec < /dev/tty
   if [ "${ZSH:-}" ]; then
-    read "${question}" apply
+    read "?${question}" apply
   else
     read -p "${question}" apply
   fi
