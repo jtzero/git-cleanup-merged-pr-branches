@@ -12,7 +12,9 @@ pre_init_hook() {
 }
 
 get_states() {
-  local -r branch="${1}"
+  local -r remote_with_branch="${1}"
+  local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
+  local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
   glab api /projects/:id/merge_requests -Fsource_branch="${branch}" -X GET | jq -r '[.[] | {state: .state, id: .id, iid: .iid }]'
 }
 

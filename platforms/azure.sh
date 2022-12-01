@@ -13,7 +13,7 @@ get_states() {
   local -r remote_with_branch="${1}"
   local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  local -r version_and_org_and_project_and_repo="$(git remote get-url --push "$(git remote | head -n1)" | cut -d':' -f2 | cut -d'.' -f1)"
+  local -r version_and_org_and_project_and_repo="$(git remote get-url --push "$(git remote "${remote}" | grep 'push')" | cut -d':' -f2 | cut -d'.' -f1)"
   local -r project="$(echo "${version_and_org_and_project_and_repo}" | cut -d '/' -f3)"
   az repos pr list --detect true --project "${project}" --source-branch "${branch}" --status all | jq -r '[.[] | {state: .status, id: .pullRequestId }]'
 }

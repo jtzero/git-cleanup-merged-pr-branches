@@ -2,7 +2,6 @@
 #
 # reqs: realpath, jq
 # TODO pass VERBOSE around instead of global
-
 set -Eeuo pipefail
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
@@ -76,7 +75,8 @@ available_platforms() {
 
 query_vcs_platform() {
   local -r platform_dir="${1}"
-  local -r platform="$(git remote -v | head -n 1 | grep -o -E "$(available_platforms "${platform_dir}")")"
+  local -r remote="${2}"
+  local -r platform="$(git remote -v | grep 'push' | grep "${remote}" | grep -o -E "$(available_platforms "${platform_dir}")")"
   if [ -z "${platform}" ]; then
     # shellcheck disable=SC2016
     printf '%s::%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
@@ -90,27 +90,32 @@ clean_pr_merged_branches() {
   local interactive="${2:-}"
   local verbose="${3:-}"
 
-  local -r platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms")"
-
-  local -r result="$(cut -d':' -f1 <<<"${platform_query_result}")"
-  local -r platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
-
-  if [ "${result}" = "not_found" ]; then
-    printf '%s' "${platform}"
-    exit 22
-  fi
-  #shellcheck source=/dev/null
-  . "${GCMPR_DIR}/platforms/${platform}.sh"
-  local -r type_result="$(type pre_init_hook 2>&1)"
-  if ! (echo "${type_result}" | grep -sq 'not found'); then
-    pre_init_hook
-  fi
-
   local toDelete=()
   local toDeleteMessages=()
   for remote_branch_and_local_branch in $branches_to_check; do
     local -r remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
     local -r local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
+
+    local -r remote="$(cut -d'/' -f1 <<<"${remote_branch}")"
+    local -r platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms" "${remote}")"
+
+    local -r result="$(cut -d':' -f1 <<<"${platform_query_result}")"
+    local -r platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
+
+    #TODO instead of sourcing make this a callable script
+    #shellcheck source=/dev/null
+    . "${GCMPR_DIR}/platforms/${platform}.sh"
+
+    if [ "${result}" = "not_found" ]; then
+      printf '%s' "${platform}"
+      exit 22
+    fi
+
+    local -r type_result="$(type pre_init_hook 2>&1)"
+    if ! (echo "${type_result}" | grep -sq 'not found'); then
+      pre_init_hook
+    fi
+
     local -r states="$(get_states "${remote_branch}")"
 
     local -r had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
