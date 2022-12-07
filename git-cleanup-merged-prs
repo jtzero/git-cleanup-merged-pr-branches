@@ -91,18 +91,17 @@ clean_pr_merged_branches() {
   local branches_to_check="${1}"
   local auto_apply="${2:-false}"
   local verbose="${3:-}"
-
   local toDelete=()
   local toDeleteMessages=()
   for remote_branch_and_local_branch in $branches_to_check; do
-    local -r remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
-    local -r local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
+    local remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
+    local local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
-    local -r remote="$(cut -d'/' -f1 <<<"${remote_branch}")"
-    local -r platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms" "${remote}")"
+    local remote="$(cut -d'/' -f1 <<<"${remote_branch}")"
+    local platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms" "${remote}")"
 
-    local -r result="$(cut -d':' -f1 <<<"${platform_query_result}")"
-    local -r platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
+    local result="$(cut -d':' -f1 <<<"${platform_query_result}")"
+    local platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
 
     if [ "${result}" = "not_found" ]; then
       printf '%s' "${platform} in ${GCMPR_DIR}/platforms/" "$(ls "${GCMPR_DIR}/platforms/")"
@@ -113,18 +112,18 @@ clean_pr_merged_branches() {
     #shellcheck source=/dev/null
     . "${GCMPR_DIR}/platforms/${platform}.sh"
 
-    local -r type_result="$(type pre_init_hook 2>&1)"
+    local type_result="$(type pre_init_hook 2>&1)"
     if ! (echo "${type_result}" | grep -sq 'not found'); then
       pre_init_hook
     fi
 
-    local -r states="$(get_states "${remote_branch}")"
+    local states="$(get_states "${remote_branch}")"
 
-    local -r had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
+    local had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
     if [ "${had_a_pr}" = "true" ]; then
-      local -r any_open_statuses="$(get_any_open_states "${states}")"
+      local any_open_statuses="$(get_any_open_states "${states}")"
       if [ "${any_open_statuses}" = "false" ]; then
-        local -r only_completed="$(get_only_completed "${states}")"
+        local only_completed="$(get_only_completed "${states}")"
         if [ "${only_completed}" = "true" ]; then
           local message="${local_branch} would be deleted"
           if [ "${verbose}" = "true" ]; then
