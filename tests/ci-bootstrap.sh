@@ -17,12 +17,14 @@ git remote add origin "https://CI:${GCMPR_TOKEN}@gitlab.com/jtzero/git-cleanup-m
 git fetch --all
 mkdir ../hooks
 mkdir -p .git/hooks
-cp -r ./* ../hooks/
-ln -nfs "$(dirname "${PWD}")/hooks/git-cleanup-merged-prs" ./.git/hooks/post-checkout
+UP_DIR="$(dirname "${PWD}")"
+INSTALL_DIR="${UP_DIR}/gcmpr"
+mkdir -p "${INSTALL_DIR}"
+cp -r ./* "${INSTALL_DIR}/"
+ln -nfs "${INSTALL_DIR}/bin/git-cleanup-merged-prs" ./.git/hooks/post-checkout
 branch_to_be_deleted="integration-test"
 git checkout --track "origin/${branch_to_be_deleted}"
-ls -la "$(dirname "${PWD}")/hooks/platforms"
-readlink -f "$(dirname "${PWD}")/hooks/platforms"
+tree "${INSTALL_DIR}"
 git remote -v
 result="$(GCMPR_AUTO_APPLY=true GCMPR_DEBUG=true git checkout - 2>&1)"
 if [[ "${result}" == *"Deleted branch integration-test"* ]]; then

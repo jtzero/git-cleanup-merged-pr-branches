@@ -51,5 +51,5 @@ lint-test:
     - . $HOME/.asdf/asdf.sh
     - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
-    - shellcheck -s bash -x git-cleanup-merged-prs -P platforms/
-    - shfmt -d git-cleanup-merged-prs platforms
+    - shellcheck -s bash -x ./bin/git-cleanup-merged-prs -P lib/
+    - shfmt -d bin lib

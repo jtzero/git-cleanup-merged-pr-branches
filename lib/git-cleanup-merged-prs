@@ -17,15 +17,6 @@ else
   IS_BASH=1
 fi
 
-PREVIOUS_SHA="${1:-}"
-# shellcheck disable=SC2034
-NEXT_SHA="${2:-}"
-BRANCH_OR_FILES="${3:-}"
-
-if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
-  set -x
-fi
-
 config_file_path() {
   echo "$(git rev-parse --show-toplevel)/.git/info/cleanup"
 }
@@ -247,14 +238,3 @@ run() {
     fi
   fi
 }
-
-config_exclusions="$(excluded_by_config)"
-
-case "${PREVIOUS_SHA}" in
-help)
-  help
-  ;;
-*)
-  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
-  ;;
-esac

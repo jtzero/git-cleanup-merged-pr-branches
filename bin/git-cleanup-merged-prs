@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+#
+
+set -Eeuo pipefail
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  GCMPR_BIN_DIR="${0:A:h}"
+  # shellcheck disable=SC2034
+  IS_ZSH=1
+else
+  if ! command -v realpath >/dev/null 2>&1; then
+    exit 1
+  fi
+  GCMPR_BIN_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  # shellcheck disable=SC2034
+  IS_BASH=1
+fi
+
+GCMPR_DIR="$(dirname "${GCMPR_BIN_DIR}")"
+GCMPR_LIB_DIR="${GCMPR_DIR}/lib"
+
+PREVIOUS_SHA="${1:-}"
+# shellcheck disable=SC2034
+NEXT_SHA="${2:-}"
+BRANCH_OR_FILES="${3:-}"
+
+if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
+  set -x
+fi
+
+. "${GCMPR_LIB_DIR}/git-cleanup-merged-prs" "${@}"
+
+config_exclusions="$(excluded_by_config)"
+
+case "${PREVIOUS_SHA}" in
+help)
+  help
+  ;;
+*)
+  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
+  ;;
+esac
+
+if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
+  set +x
+fi
