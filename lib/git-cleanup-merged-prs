@@ -137,10 +137,19 @@ clean_pr_merged_branches() {
     fi
   done
   if [ ${#toDelete[@]} -gt 0 ]; then
-    printf '%s\n' "${toDeleteMessages[@]}"
+    printf '%s' '- '
+    array_join $'\n- ' "${toDeleteMessages[@]}"
     printf '%s\n' "Prune tracking branches"
     interactive_delete "${auto_apply}" "${toDelete[@]}"
   fi
+}
+
+array_join() {
+  local -r delimiter="${1}"
+  local array=("${@:2}")
+  for item in "${array[@]}"; do
+    printf "%s${delimiter}" "${item}"
+  done
 }
 
 ask() {
