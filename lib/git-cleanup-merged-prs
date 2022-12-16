@@ -169,6 +169,7 @@ interactive_delete() {
   local -r auto_apply="${1}"
   local toDelete=("${@:2}")
   local apply='n'
+  local -r verbose="${GCMPR_VERBOSE:-}"
   if [ "${auto_apply}" = "true" ]; then
     apply='y'
   else
@@ -183,12 +184,12 @@ interactive_delete() {
       if [ "${should_delete}" = "y" ]; then
         delete_branches "${branch}"
       else
-        if [ "${GCMPR_VERBOSE:-}" = "true" ]; then
+        if [ "${verbose}" = "true" ]; then
           printf '%s\n' "not deleting...${branch}"
         fi
       fi
     done
-    interactive_prune_tracking "${GCMPR_VERBOSE}"
+    interactive_prune_tracking "${verbose}"
   fi
 }
 
