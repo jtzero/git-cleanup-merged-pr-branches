@@ -233,7 +233,7 @@ default_usage_string() {
 usage: git-cleanup-merged-prs $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-prs help'
     All arguments are required however the first two can be empty strings.
     "...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."
-    Further explination of arguments is here https://git-scm.com/docs/githooks#_post_checkout
+    Further explanation of arguments is here https://git-scm.com/docs/githooks#_post_checkout
 EOS
 }
 
