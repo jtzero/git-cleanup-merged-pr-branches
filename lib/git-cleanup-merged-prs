@@ -228,13 +228,26 @@ interactive_help() {
 EOS
 }
 
-help() {
+default_usage_string() {
   cat <<-'EOS'
 usage: git-cleanup-merged-prs $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-prs help'
     All arguments are required however the first two can be empty strings.
     "...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."
     Further explination of arguments is here https://git-scm.com/docs/githooks#_post_checkout
 EOS
+}
+
+standalone_usage_string() {
+  printf "%s\n" "usage: git-cleanup-merged-prs |  git-cleanup-merged-prs help|--help|?|--?"
+}
+
+help() {
+  local -r standalone="${1:-false}"
+  if [ "${standalone}" = "true" ]; then
+    standalone_usage_string
+  else
+    default_usage_string
+  fi
   interactive_help
   cat <<-'EOS'
   Variables:

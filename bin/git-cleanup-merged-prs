@@ -33,7 +33,7 @@ config_exclusions="$(excluded_by_config)"
 
 case "${COMMAND}" in
 help|--help|?|--?)
-  help
+  help true
   ;;
 "")
   run "1" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
