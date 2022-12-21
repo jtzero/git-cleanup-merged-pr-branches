@@ -32,7 +32,7 @@ COMMAND="${1:-}"
 config_exclusions="$(excluded_by_config)"
 
 case "${COMMAND}" in
-help|--help|?|--?)
+help | --help | ? | --?)
   help true
   ;;
 "")
