@@ -21,7 +21,7 @@ UP_DIR="$(dirname "${PWD}")"
 INSTALL_DIR="${UP_DIR}/gcmpr"
 mkdir -p "${INSTALL_DIR}"
 cp -r ./* "${INSTALL_DIR}/"
-ln -nfs "${INSTALL_DIR}/bin/git-cleanup-merged-prs" ./.git/hooks/post-checkout
+ln -nfs "${INSTALL_DIR}/bin/git-cleanup-merged-prs-git-hook" ./.git/hooks/post-checkout
 branch_to_be_deleted="integration-test"
 git checkout --track "origin/${branch_to_be_deleted}"
 tree "${INSTALL_DIR}"

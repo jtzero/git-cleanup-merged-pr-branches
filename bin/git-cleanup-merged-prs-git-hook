@@ -21,27 +21,25 @@ fi
 GCMPR_DIR="$(dirname "${GCMPR_BIN_DIR}")"
 GCMPR_LIB_DIR="${GCMPR_DIR}/lib"
 
+PREVIOUS_SHA="${1:-}"
+# shellcheck disable=SC2034
+NEXT_SHA="${2:-}"
+BRANCH_OR_FILES="${3:-}"
+
 if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
   set -x
 fi
-
-COMMAND="${1:-}"
 
 . "${GCMPR_LIB_DIR}/git-cleanup-merged-prs" "${@}"
 
 config_exclusions="$(excluded_by_config)"
 
-case "${COMMAND}" in
-help|--help|?|--?)
+case "${PREVIOUS_SHA}" in
+help)
   help
   ;;
-"")
-  run "1" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
-  ;;
 *)
-  echoerr "unknown command"
-  echoerr "$(help)"
-  exit 1
+  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
   ;;
 esac
 
