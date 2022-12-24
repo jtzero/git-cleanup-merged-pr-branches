@@ -13,20 +13,20 @@ asdf install
 set -x
 git remote rename origin ci
 git branch -a
-git remote add origin "https://CI:${GCMPR_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-prs.git"
+git remote add origin "https://CI:${GCMPB_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git"
 git fetch --all
 mkdir ../hooks
 mkdir -p .git/hooks
 UP_DIR="$(dirname "${PWD}")"
-INSTALL_DIR="${UP_DIR}/gcmpr"
+INSTALL_DIR="${UP_DIR}/gcmpb"
 mkdir -p "${INSTALL_DIR}"
 cp -r ./* "${INSTALL_DIR}/"
-ln -nfs "${INSTALL_DIR}/bin/git-cleanup-merged-prs-git-hook" ./.git/hooks/post-checkout
+ln -nfs "${INSTALL_DIR}/bin/git-cleanup-merged-pr-branches-git-hook" ./.git/hooks/post-checkout
 branch_to_be_deleted="integration-test"
 git checkout --track "origin/${branch_to_be_deleted}"
 tree "${INSTALL_DIR}"
 git remote -v
-result="$(GCMPR_AUTO_APPLY=true GCMPR_DEBUG=true git checkout - 2>&1)"
+result="$(GCMPB_AUTO_APPLY=true GCMPB_DEBUG=true git checkout - 2>&1)"
 if [[ "${result}" == *"Deleted branch integration-test"* ]]; then
   printf "%s\n" "success!"
 else

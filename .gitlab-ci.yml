@@ -37,9 +37,9 @@ integration-tests:
 smoke-tests:
   stage: test
   variables:
-    GCMPR_FILE_TOKEN: /tmp/GCMPR_TOKEN
+    GCMPB_FILE_TOKEN: /tmp/GCMPB_TOKEN
   script:
-    - echo "${GCMPR_TOKEN}" > "${GCMPR_FILE_TOKEN}"
+    - echo "${GCMPB_TOKEN}" > "${GCMPB_FILE_TOKEN}"
     - ./tests/ci-bootstrap.sh
 
 lint-test:
@@ -51,5 +51,5 @@ lint-test:
     - . $HOME/.asdf/asdf.sh
     - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
-    - shellcheck -s bash -x ./bin/git-cleanup-merged-prs -P lib/
+    - shellcheck -s bash -x ./bin/git-cleanup-merged-pr-branches -P lib/
     - shfmt -d bin lib

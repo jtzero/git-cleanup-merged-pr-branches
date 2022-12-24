@@ -6,31 +6,31 @@ set -Eeuo pipefail
 
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
-  GCMPR_BIN_DIR="${0:A:h}"
+  GCMPB_BIN_DIR="${0:A:h}"
   # shellcheck disable=SC2034
   IS_ZSH=1
 else
   if ! command -v realpath >/dev/null 2>&1; then
     exit 1
   fi
-  GCMPR_BIN_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  GCMPB_BIN_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
   # shellcheck disable=SC2034
   IS_BASH=1
 fi
 
-GCMPR_DIR="$(dirname "${GCMPR_BIN_DIR}")"
-GCMPR_LIB_DIR="${GCMPR_DIR}/lib"
+GCMPB_DIR="$(dirname "${GCMPB_BIN_DIR}")"
+GCMPB_LIB_DIR="${GCMPB_DIR}/lib"
 
 PREVIOUS_SHA="${1:-}"
 # shellcheck disable=SC2034
 NEXT_SHA="${2:-}"
 BRANCH_OR_FILES="${3:-}"
 
-if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
+if [ "${GCMPB_DEBUG:-}" = 'true' ]; then
   set -x
 fi
 
-. "${GCMPR_LIB_DIR}/git-cleanup-merged-prs" "${@}"
+. "${GCMPB_LIB_DIR}/git-cleanup-merged-pr-branches" "${@}"
 
 config_exclusions="$(excluded_by_config)"
 
@@ -39,10 +39,10 @@ help)
   help
   ;;
 *)
-  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${GCMPR_AUTO_APPLY:-false}" "${GCMPR_SKIP_CLEANUP_MERGED_PRS:-false}" "${GCMPR_VERBOSE:-false}"
+  run "${BRANCH_OR_FILES}" "${config_exclusions}" "${GCMPB_AUTO_APPLY:-false}" "${GCMPB_SKIP_CLEANUP_MERGED_PR_BRANCHES:-false}" "${GCMPB_VERBOSE:-false}"
   ;;
 esac
 
-if [ "${GCMPR_DEBUG:-}" = 'true' ]; then
+if [ "${GCMPB_DEBUG:-}" = 'true' ]; then
   set +x
 fi

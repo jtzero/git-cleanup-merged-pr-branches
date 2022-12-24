@@ -4,8 +4,8 @@
 COMPLETED_STATES=('merged' 'closed')
 
 TOKEN_FILE=""
-if [ -f "${GCMPR_FILE_TOKEN:-}" ]; then
-  TOKEN_FILE="${GCMPR_FILE_TOKEN}"
+if [ -f "${GCMPB_FILE_TOKEN:-}" ]; then
+  TOKEN_FILE="${GCMPB_FILE_TOKEN}"
 fi
 
 pre_init_hook() {

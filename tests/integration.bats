@@ -6,5 +6,5 @@ setup() {
 }
 
 @test "print help" {
-  git-cleanup-merged-prs 'help'
+  git-cleanup-merged-pr-branches 'help'
 }

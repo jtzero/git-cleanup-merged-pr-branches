@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
 # reqs: realpath
-# TODO pass GCMPR_VERBOSE around instead of global
+# TODO pass GCMPB_VERBOSE around instead of global
 set -Eeuo pipefail
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
-  GCMPR_DIR="${0:A:h}"
+  GCMPB_DIR="${0:A:h}"
   # shellcheck disable=SC2034
   IS_ZSH=1
 else
   if ! command -v realpath >/dev/null 2>&1; then
     exit 1
   fi
-  GCMPR_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  GCMPB_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
   # shellcheck disable=SC2034
   IS_BASH=1
 fi
@@ -92,19 +92,19 @@ clean_pr_merged_branches() {
     local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
     remote="$(cut -d'/' -f1 <<<"${remote_branch}")"
-    platform_query_result="$(query_vcs_platform "${GCMPR_DIR}/platforms" "${remote}")"
+    platform_query_result="$(query_vcs_platform "${GCMPB_DIR}/platforms" "${remote}")"
 
     result="$(cut -d':' -f1 <<<"${platform_query_result}")"
     platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
 
     if [ "${result}" = "not_found" ]; then
-      printf '%s' "${platform} in ${GCMPR_DIR}/platforms/" "$(ls "${GCMPR_DIR}/platforms/")"
+      printf '%s' "${platform} in ${GCMPB_DIR}/platforms/" "$(ls "${GCMPB_DIR}/platforms/")"
       exit 22
     fi
 
     #TODO instead of sourcing make this a callable script
     #shellcheck source=/dev/null
-    . "${GCMPR_DIR}/platforms/${platform}.sh"
+    . "${GCMPB_DIR}/platforms/${platform}.sh"
 
     type_result="$(type pre_init_hook 2>&1)"
     if ! (echo "${type_result}" | grep -sq 'not found'); then
@@ -171,7 +171,7 @@ interactive_delete() {
   local -r auto_apply="${1}"
   local toDelete=("${@:2}")
   local apply='n'
-  local -r verbose="${GCMPR_VERBOSE:-}"
+  local -r verbose="${GCMPB_VERBOSE:-}"
   if [ "${auto_apply}" = "true" ]; then
     apply='y'
   else
@@ -230,7 +230,7 @@ EOS
 
 default_usage_string() {
   cat <<-'EOS'
-usage: git-cleanup-merged-prs $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-prs help'
+usage: git-cleanup-merged-pr-branches $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-pr-branches help'
     All arguments are required however the first two can be empty strings.
     "...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."
     Further explanation of arguments is here https://git-scm.com/docs/githooks#_post_checkout
@@ -238,7 +238,7 @@ EOS
 }
 
 standalone_usage_string() {
-  printf "%s\n" "usage: git-cleanup-merged-prs |  git-cleanup-merged-prs help|--help|?|--?"
+  printf "%s\n" "usage: git-cleanup-merged-pr-branches |  git-cleanup-merged-pr-branches help|--help|?|--?"
 }
 
 help() {
@@ -251,8 +251,8 @@ help() {
   interactive_help
   cat <<-'EOS'
   Variables:
-    SKIP_CLEANUP_MERGED_PRS: if set to true this script will skip execution
-    GCMPR_VERBOSE: if set to true this script will print more information as it runs
+  SKIP_CLEANUP_MERGED_PR_BRANCHES: if set to true this script will skip execution
+    GCMPB_VERBOSE: if set to true this script will print more information as it runs
 EOS
 }
 
@@ -260,7 +260,7 @@ run() {
   local branch_or_files="${1}"
   local config_exclusions="${2}"
   local auto_apply="${3:-false}"
-  local skip_cleanup_merged_prs="${4:-false}"
+  local skip_cleanup_merged_pr_branches="${4:-false}"
   local verbose="${5:-false}"
   local interactive_rebase_in_progress=false
 
@@ -273,11 +273,11 @@ run() {
       printf '%s\n' "items excluded via config($(config_file_path)):${config_exclusions}:"
     fi
   fi
-  if [ "${skip_cleanup_merged_prs}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
+  if [ "${skip_cleanup_merged_pr_branches}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
     clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}"
   else
     if [ "${verbose}" = "true" ]; then
-      printf '%s\n' "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PRS:${skip_cleanup_merged_prs:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
+      printf '%s\n' "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PR_BRANCHES:${skip_cleanup_merged_pr_branches:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
     fi
   fi
 }
