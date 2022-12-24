@@ -1,5 +1,11 @@
 
 # Installation
+  ## Dependencies
+  One or more CLI's that correspond to the server you are using:
+  - https://gitlab.com/gitlab-org/cli
+  - https://cli.github.com/
+  - https://learn.microsoft.com/en-us/cli/azure/install-azure-cli & `az extension add --name azure-devops`
+  ## Steps
   1. `git clone git@gitlab.com:jtzero/git-cleanup-merged-prs.git`
   1. `mkdir "${HOME}/.git-hooks"`
   1. `git config --global core.hooksPath "${HOME}/.git-hooks"`
