@@ -12,7 +12,10 @@
   1. `ln -nfs "${PWD}/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"`
 
 # Usage as post-checkout hook with first time log in
-  ![first time use](./web/first-time.gif)
+- The first time you use the hook it will ask you to log in to the respective VCS server.
+- Then once you have switched branches, if any branches have a PR that has been merged or closed, the tui will ask you if you want to delete it.
+
+![first time use](./web/first-time.gif)
 
 # Usage Info
   `bin/git-cleanup-merged-pr-branches-git-hook help` OR `bin/git-cleanup-merged-pr-branches help`
