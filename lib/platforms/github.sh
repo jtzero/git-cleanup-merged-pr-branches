@@ -2,6 +2,8 @@
 # shellcheck disable=SC2034
 COMPLETED_STATES=('MERGED' 'CLOSED')
 
+GCMPB_GH_FILE_TOKEN="${GCMPB_GH_FILE_TOKEN:-''}"
+
 pre_init_hook() {
   set +e
   local exit_code="0"
@@ -10,8 +12,12 @@ pre_init_hook() {
   set -e
   if [ "${exit_code}" != "0" ]; then
     printf '%s' "${status}"
-    exec </dev/tty
-    gh auth login || exit 1
+    if [ -f "${GCMPB_GH_FILE_TOKEN}" ]; then
+      gh auth login --with-token <"${GCMPB_GH_FILE_TOKEN}"
+    else
+      exec </dev/tty
+      gh auth login || exit 1
+    fi
   fi
 }
 

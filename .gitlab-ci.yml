@@ -18,7 +18,7 @@
 
 cache:
   paths:
-    - .asdf/
+    - .asdf/ # Both artifacts and caches define their paths relative to the project directory, and can’t link to files outside it
 
 stages:          # List of stages for jobs, and their order of execution
   - test
@@ -28,18 +28,28 @@ integration-tests:
   script:
     - apt-get update -y && apt-get upgrade -y gettext
     - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
-    - ln -nfs "${PWD}/.asdf" ~/.asdf
-    - . $HOME/.asdf/asdf.sh
-    - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
+    - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
+    - . "${PWD}/.asdf/asdf.sh"
+    - cut -d' ' -f1 .tool-versions | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
     - bats tests
 
-smoke-tests:
+smoke-test-gitlab:
   stage: test
   variables:
-    GCMPB_FILE_TOKEN: /tmp/GCMPB_TOKEN
+    GCMPB_GL_FILE_TOKEN: /tmp/GCMPB_GL_TOKEN
+    VCS: gitlab
   script:
-    - echo "${GCMPB_TOKEN}" > "${GCMPB_FILE_TOKEN}"
+    - echo "${GCMPB_GL_API_TOKEN}" > "${GCMPB_GL_FILE_TOKEN}"
+    - ./tests/ci-bootstrap.sh
+
+smoke-test-github:
+  stage: test
+  variables:
+    GCMPB_GH_FILE_TOKEN: /tmp/GCMPB_GH_TOKEN
+    VCS: github
+  script:
+    - echo "${GCMPB_GH_API_TOKEN}" > "${GCMPB_GH_FILE_TOKEN}"
     - ./tests/ci-bootstrap.sh
 
 lint-test:
@@ -47,9 +57,9 @@ lint-test:
   script:
     - apt-get update -y && apt-get upgrade -y gettext
     - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
-    - ln -nfs "${PWD}/.asdf" ~/.asdf
-    - . $HOME/.asdf/asdf.sh
-    - cat .tool-versions | cut -d' ' -f1 | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
+    - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
+    - . "${PWD}/.asdf/asdf.sh"
+    - cut -d' ' -f1 .tool-versions | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
     - shellcheck -s bash -x ./bin/git-cleanup-merged-pr-branches -P lib/
     - shfmt -d bin lib

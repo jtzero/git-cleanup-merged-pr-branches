@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  LIBEXEC_DIR="${0:A:h}"
+else
+  LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+fi
+
+docker volume create gcmpb-asdf
+
+docker run -ti \
+  --env VCS=github \
+  --env GCMPB_GH_FILE_TOKEN="/root/git-cleanup-merged-pr-branches/tmp/GCMPB_GH_FILE_TOKEN" \
+  --env GITHUB_DEPLOY_KEY="/root/git-cleanup-merged-pr-branches/tmp/GITHUB_DEPLOY_KEY" \
+  --mount source=gcmpb-asdf,target=/root/.asdf \
+  -v "$(dirname "${LIBEXEC_DIR}")":/root/git-cleanup-merged-pr-branches \
+  -w /root/git-cleanup-merged-pr-branches \
+  ruby:2.5 \
+  /root/git-cleanup-merged-pr-branches/tests/local-docker-bootstrap.sh
