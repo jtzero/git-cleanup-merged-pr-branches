@@ -87,7 +87,7 @@ clean_pr_merged_branches() {
   local toDelete=()
   local toDeleteMessages=()
   for remote_branch_and_local_branch in $branches_to_check; do
-    local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr=""
+    local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr="" decision="" decision_command=""
     remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
     local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
@@ -102,40 +102,19 @@ clean_pr_merged_branches() {
       exit 22
     fi
 
-    #TODO instead of sourcing make this a callable script
-    #shellcheck source=/dev/null
-    . "${GCMPB_DIR}/platforms/${platform}.sh"
+    local platform_path="${GCMPB_DIR}/platforms/${platform}.sh"
 
-    type_result="$(type pre_init_hook 2>&1)"
-    if ! (echo "${type_result}" | grep -sq 'not found'); then
-      pre_init_hook
-    fi
-
-    states="$(get_states "${remote_branch}")"
-
-    had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
-    if [ "${had_a_pr}" = "true" ]; then
-      local any_open_statuses=""
-      any_open_statuses="$(get_any_open_states "${states}")"
-      if [ "${any_open_statuses}" = "false" ]; then
-        local only_completed=""
-        only_completed="$(get_only_completed "${states}")"
-        if [ "${only_completed}" = "true" ]; then
-          local message="${local_branch} would be deleted"
-          if [ "${verbose}" = "true" ]; then
-            toDeleteMessages[${#toDeleteMessages[@]}]="${message}:${states}"
-          else
-            toDeleteMessages[${#toDeleteMessages[@]}]="${message}"
-          fi
-          toDelete[${#toDelete[@]}]="${local_branch}"
-        else
-          [ "${verbose}" = "true" ] && printf '%s\n' "${remote_branch_and_local_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting:${states}"
-        fi
-      else
-        [ "${verbose}" = "true" ] && printf '%s\n' "${remote_branch_and_local_branch} has open pr's, not deleting:${states}"
-      fi
+    decision="$(decide "${platform_path}" "${local_branch}" "${remote_branch}" "${remote_branch_and_local_branch}" "${verbose}")"
+    decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
+    if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
+      toDelete[${#toDelete[@]}]="${local_branch}"
+      local message_and_rest="$(printf '%s' "${result}" | cut -d':' -f2- -z | tr -d '\0')"
+      toDeleteMessages[${#toDeleteMessages[@]}]="${message_and_rest}"
     else
-      [ "${verbose}" = "true" ] && printf '%s\n' "${remote_branch_and_local_branch} never had a pr, not deleting:${states}"
+      if [ "${verbose}" = "true" ]; then
+        local message_and_rest="$(printf '%s' "${result}" | cut -d':' -f2- -z | tr -d '\0')"
+        printf '%s\n' "${message_and_rest}"
+      fi
     fi
   done
   if [ ${#toDelete[@]} -gt 0 ]; then
@@ -143,6 +122,47 @@ clean_pr_merged_branches() {
     array_join $'\n- ' "${toDeleteMessages[@]}"
     printf '%s\n' "Prune tracking branches"
     interactive_delete "${auto_apply}" "${toDelete[@]}"
+  fi
+}
+
+DECIDE_DELETE='delete'
+DECIDE_SKIP='skip'
+
+decide() {
+  local -r platform_file="${1}"
+  local -r local_branch="${2}"
+  local -r remote_branch="${3}"
+  local -r remote_branch_and_local_branch="${4}"
+  local -r verbose="${5:-false}"
+
+  #shellcheck source=/dev/null
+  . "${platform_file}"
+
+  local -r type_result="$(type pre_init_hook 2>&1)"
+  if ! (echo "${type_result}" | grep -sq 'not found'); then
+    pre_init_hook
+  fi
+
+  states="$(get_states "${remote_branch}")"
+
+  had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
+  if [ "${had_a_pr}" = "true" ]; then
+    local any_open_statuses=""
+    any_open_statuses="$(get_any_open_states "${states}")"
+    if [ "${any_open_statuses}" = "false" ]; then
+      local only_completed=""
+      only_completed="$(get_only_completed "${states}")"
+      if [ "${only_completed}" = "true" ]; then
+        local message="${local_branch} would be deleted"
+        printf '%s:%s:%s' "${DECIDE_DELETE}" "${message}" "${states}"
+      else
+        printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
+      fi
+    else
+      printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} has open pr's, not deleting" "${states}"
+    fi
+  else
+    printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} never had a pr, not deleting" "${states}"
   fi
 }
 

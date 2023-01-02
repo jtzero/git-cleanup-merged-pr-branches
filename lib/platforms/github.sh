@@ -11,7 +11,6 @@ pre_init_hook() {
   exit_code="$?"
   set -e
   if [ "${exit_code}" != "0" ]; then
-    printf '%s' "${status}"
     if [ -f "${GCMPB_GH_FILE_TOKEN}" ]; then
       gh auth login --with-token <"${GCMPB_GH_FILE_TOKEN}"
     else
