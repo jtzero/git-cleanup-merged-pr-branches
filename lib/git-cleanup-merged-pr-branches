@@ -17,7 +17,7 @@ else
   IS_BASH=1
 fi
 
-echoerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
+printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 
 config_file_path() {
   echo "$(git rev-parse --show-toplevel)/.git/info/cleanup"

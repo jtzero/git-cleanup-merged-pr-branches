@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-echoerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
+printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 
 apt-get update -y && apt-get install -y curl gpg
 curl -q 'https://proget.makedeb.org/debian-feeds/prebuilt-mpr.pub' | gpg --dearmor | tee /usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg 1>/dev/null
@@ -55,7 +55,7 @@ EOF
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
   && apt update && apt install gh -y
 else
-  echoerr "Unknown VCS:'${VCS}'"
+  printerr "Unknown VCS:'${VCS}'"
 fi
 git remote -v
 git fetch --all
@@ -77,6 +77,6 @@ result="$(cat /tmp/result)"
 if [[ "${result}" == *"Deleted branch integration-test"* ]]; then
   printf "%s\n" "success!"
 else
-  echoerr "Checkout did not ask to delete the branch ${result}"
+  printerr "Checkout did not ask to delete the branch ${result}"
   exit 2
 fi
