@@ -8,6 +8,8 @@
   1. realpath version ~> 9.0
   1. git >= 2.22.0
   1. jq ~> 1.6
+  - [additional-info](./DEPENDENCIES.md)
+
   ## Steps
   ```bash
   git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${HOME}/.local/git-cleanup-merged-pr-branches" \
