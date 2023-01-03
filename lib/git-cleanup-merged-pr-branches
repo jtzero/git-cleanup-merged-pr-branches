@@ -108,11 +108,11 @@ clean_pr_merged_branches() {
     decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
     if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
       toDelete[${#toDelete[@]}]="${local_branch}"
-      local message_and_rest="$(printf '%s' "${result}" | cut -d':' -f2- -z | tr -d '\0')"
+      local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
       toDeleteMessages[${#toDeleteMessages[@]}]="${message_and_rest}"
     else
       if [ "${verbose}" = "true" ]; then
-        local message_and_rest="$(printf '%s' "${result}" | cut -d':' -f2- -z | tr -d '\0')"
+        local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2- -z | tr -d '\0')"
         printf '%s\n' "${message_and_rest}"
       fi
     fi
