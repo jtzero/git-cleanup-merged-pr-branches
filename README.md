@@ -1,4 +1,11 @@
 
+
+# GCMPB <sub><sup><sub>git-cleanup-merged-pr-branches</sub></sup></sub>
+![broom](./web/broom-logo-wide.jpg)
+
+[![pipeline status](https://gitlab.com/jtzero/git-cleanup-merged-pr-branches/badges/main/pipeline.svg)](https://gitlab.com/jtzero/git-cleanup-merged-pr-branches/pipelines?scope=all&page=1")
+---
+
 # Installation
   ## Dependencies
   1. One or more CLI's that correspond to the server you are using:
