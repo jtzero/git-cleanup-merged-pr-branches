@@ -43,6 +43,21 @@ smoke-test-gitlab:
     - echo "${GCMPB_GL_API_TOKEN}" > "${GCMPB_GL_FILE_TOKEN}"
     - ./tests/ci-bootstrap.sh
 
+smoke-test-gitlab-no-clone:
+  stage: test
+  variables:
+    GCMPB_GL_FILE_TOKEN: /tmp/GCMPB_GL_TOKEN
+    VCS: gitlab
+    GIT_STRATEGY: none
+  script:
+    - echo "${CI_PROJECT_DIR}"
+    - echo "${GCMPB_GL_API_TOKEN}" > "${GCMPB_GL_FILE_TOKEN}"
+    - git clone "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git" "${HOME}/.local/git-cleanup-merged-pr-branches" --branch "${CI_COMMIT_BRANCH}" &&
+      mkdir "${HOME}/.git-hooks" &&
+      git config --global core.hooksPath "${HOME}/.git-hooks" &&
+      ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
+    - ${HOME}/.local/git-cleanup-merged-pr-branches/tests/ci-bootstrap-no-clone.sh "${PWD}"
+
 smoke-test-github:
   stage: test
   variables:
