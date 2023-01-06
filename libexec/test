@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  LIBEXEC_DIR="${0:A:h}"
+else
+  LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+fi
+
+GCMPB_ROOT_DIR="$(dirname "${LIBEXEC_DIR}")"
+TESTS_DIR="${GCMPB_ROOT_DIR}/tests"
+
+cd "${GCMPB_ROOT_DIR}" || exit 1
+
+git submodule init
+git submodule update
+
+bats "${TESTS_DIR}"/*bats
+
+cd - || exit 1

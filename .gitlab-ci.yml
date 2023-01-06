@@ -23,7 +23,7 @@ cache:
 stages:          # List of stages for jobs, and their order of execution
   - test
 
-integration-tests:
+bats-tests:
   stage: test
   script:
     - apt-get update -y && apt-get upgrade -y gettext
@@ -32,7 +32,7 @@ integration-tests:
     - . "${PWD}/.asdf/asdf.sh"
     - cut -d' ' -f1 .tool-versions | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
     - asdf install
-    - bats tests
+    - bash libexec/test
 
 smoke-test-gitlab:
   stage: test

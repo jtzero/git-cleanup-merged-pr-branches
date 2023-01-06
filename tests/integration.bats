@@ -6,5 +6,6 @@ setup() {
 }
 
 @test "print help" {
-  git-cleanup-merged-pr-branches 'help'
+  run git-cleanup-merged-pr-branches 'help'
+  [ "$status" -eq 0 ]
 }
