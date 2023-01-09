@@ -23,13 +23,10 @@ setup() {
 }
 
 @test "query_vcs_platform" {
-  find() {
-    printf '%s\n' 'boatbin.sh'
-  }
   git() {
     printf '%s\n%s\n' 'origin	git@gboatbin.com:jtzero/git-cleanup-merged-pr-branches.git (fetch)' 'origin	git@gboatbin.com:jtzero/git-cleanup-merged-pr-branches.git (push)'
   }
-  output="$(query_vcs_platform '/nop' 'origin')"
+  output="$(query_vcs_platform 'origin' 'boatbin')"
   unset -f find
   unset -f git
   assert_output 'found:boatbin'

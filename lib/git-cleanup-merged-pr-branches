@@ -69,12 +69,12 @@ available_platforms() {
 }
 
 query_vcs_platform() {
-  local -r platform_dir="${1}"
-  local -r remote="${2}"
-  local -r platform="$(git remote -v | grep 'push' | grep "${remote}" | grep -o -E "$(available_platforms "${platform_dir}")" | head -n1)"
+  local -r remote="${1}"
+  local -r platforms_available="${2}"
+  local -r platform="$(git remote -v | grep 'push' | grep "${remote}" | grep -o -E "${platforms_available}" | head -n1)"
   if [ -z "${platform}" ]; then
     # shellcheck disable=SC2016
-    printf '%s:%s' 'not_found:platform not found from `git remote -v`' "$(available_platforms "${platform_dir}")"
+    printf '%s:%s' 'not_found:platform not found from `git remote -v`' "${platforms_available}"
   else
     printf '%s' "found:${platform}"
   fi
@@ -86,13 +86,14 @@ clean_pr_merged_branches() {
   local verbose="${3:-}"
   local toDelete=()
   local toDeleteMessages=()
+  local -r platforms_available="$(available_platforms "${GCMPB_DIR}/platforms")"
   for remote_branch_and_local_branch in $branches_to_check; do
     local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr="" decision="" decision_command=""
     remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
     local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
     remote="$(cut -d'/' -f1 <<<"${remote_branch}")"
-    platform_query_result="$(query_vcs_platform "${GCMPB_DIR}/platforms" "${remote}")"
+    platform_query_result="$(query_vcs_platform "${remote}" "${platforms_available}")"
 
     result="$(cut -d':' -f1 <<<"${platform_query_result}")"
     platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
