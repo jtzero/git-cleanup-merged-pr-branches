@@ -19,9 +19,9 @@
 
   ## Steps
   ```bash
-  git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable
-  && mkdir "${HOME}/.git-hooks"
-  && git config --global core.hooksPath "${HOME}/.git-hooks"
+  git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable \
+  && mkdir "${HOME}/.git-hooks" \
+  && git config --global core.hooksPath "${HOME}/.git-hooks" \
   && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
   ```
 
