@@ -20,7 +20,7 @@ fi
 printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 
 config_file_path() {
-  echo "$(git rev-parse --show-toplevel)/.git/info/cleanup"
+  printf '%s' "$(git rev-parse --show-toplevel)/.git/info/cleanup"
 }
 
 config() {
@@ -29,7 +29,7 @@ config() {
     # shellcheck disable=SC2086
     cat ${config_filepath}
   else
-    echo ""
+    printf ''
   fi
 }
 
