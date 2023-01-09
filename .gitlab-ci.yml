@@ -63,3 +63,13 @@ lint-test:
     - asdf install
     - shellcheck -s bash -x ./bin/git-cleanup-merged-pr-branches -P lib/
     - shfmt -d bin lib
+
+clone-test:
+  stage: test
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - git clone "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git" "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable
+        && mkdir "${HOME}/.git-hooks"
+        && git config --global core.hooksPath "${HOME}/.git-hooks"
+        && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
