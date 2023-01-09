@@ -28,9 +28,13 @@
   - Ubuntu/Debian:
       `curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash`
 
-## realpath version ~> 9.0
-  - mac: `brew install coreutils`
-  - Ubuntu/Debian: `apt-get install realpath`
+## GNU coreutils >= 8.32
+  - mac:
+    - command: `brew install coreutils`
+    - info: this will install the utils as `gcut` and `grealpath` respectively,
+            however adding `export PATH="$(brew --prefix coreutils)/libexec/gnubin:${PATH}"`
+            to the repscetive .bashrc or .zshrc will put the gnu version in the path
+  - Ubuntu/Debian: `apt-get install coreutils`
 
 ## git >= 2.22.0
   - asdf: `asdf plugin add git && asdf install git 2.22.0`

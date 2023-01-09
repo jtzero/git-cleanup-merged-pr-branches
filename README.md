@@ -12,7 +12,7 @@
       - https://gitlab.com/gitlab-org/cli
       - https://cli.github.com/
       - https://learn.microsoft.com/en-us/cli/azure/install-azure-cli & `az extension add --name azure-devops`
-  1. realpath version ~> 9.0
+  1. gnu-coreutils >= 8.32
   1. git >= 2.22.0
   1. jq ~> 1.6
   - [additional-info](./DEPENDENCIES.md)
