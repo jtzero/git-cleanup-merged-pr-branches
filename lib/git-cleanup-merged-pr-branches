@@ -80,13 +80,37 @@ query_vcs_platform() {
   fi
 }
 
+spin() {
+  local empty_or_message="${1:-}"
+  local -r spinner='⣾⣽⣻⢿⡿⣟⣯⣷'
+  local -r charwidth=1
+
+  local message=""
+  if [ -n "${empty_or_message}" ]; then
+    message="${empty_or_message} "
+  fi
+
+  local i=0
+  while true; do
+    i=$(((i + 1) % ${#spinner}))
+    printf "\r%s" "${message}${spinner:$i:$charwidth} "
+    sleep 0.1
+  done
+}
+
 clean_pr_merged_branches() {
   local branches_to_check="${1}"
   local auto_apply="${2:-false}"
   local verbose="${3:-}"
+  local spinner="${4:-true}"
   local toDelete=()
   local toDeleteMessages=()
   local -r platforms_available="$(available_platforms "${GCMPB_DIR}/platforms")"
+  local spinner_pid=""
+  if [ "${spinner}" = "true" ]; then
+    (spin 'checking for dead branches') &
+    spinner_pid=$!
+  fi
   for remote_branch_and_local_branch in $branches_to_check; do
     local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr="" decision="" decision_command=""
     remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
@@ -119,10 +143,17 @@ clean_pr_merged_branches() {
     fi
   done
   if [ ${#toDelete[@]} -gt 0 ]; then
-    printf '%s' '- '
+    if [ -n "${spinner_pid}" ]; then
+      kill "${spinner_pid}"
+    fi
+    printf '\n%s' '- '
     array_join $'\n- ' "${toDeleteMessages[@]}"
     printf '%s\n' "Prune tracking branches"
     interactive_delete "${auto_apply}" "${toDelete[@]}"
+  else
+    if [ -n "${spinner_pid}" ]; then
+      kill "${spinner_pid}"
+    fi
   fi
 }
 
@@ -283,6 +314,7 @@ run() {
   local auto_apply="${3:-false}"
   local skip_cleanup_merged_pr_branches="${4:-false}"
   local verbose="${5:-false}"
+  local spinner="${6:-true}"
   local interactive_rebase_in_progress=false
 
   if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -qiE 'rebase.*interactive'; then
@@ -295,7 +327,7 @@ run() {
     fi
   fi
   if [ "${skip_cleanup_merged_pr_branches}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
-    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}"
+    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}" "${spinner}"
   else
     if [ "${verbose}" = "true" ]; then
       printf '%s\n' "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PR_BRANCHES:${skip_cleanup_merged_pr_branches:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"

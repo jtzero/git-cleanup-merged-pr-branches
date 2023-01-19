@@ -101,7 +101,6 @@ exec 7>tmp/set-output.log
 export BASH_XTRACEFD=7
 set -x
 
-
 #DEBUG
 git branch -a
 
