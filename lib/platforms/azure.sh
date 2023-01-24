@@ -4,8 +4,15 @@
 COMPLETED_STATES=('completed' 'abandoned')
 
 pre_init_hook() {
-  if ! az account show >/dev/null 2>&1; then
-    az login || exit 1
+  if [ -z "${AZURE_DEVOPS_EXT_PAT:-}" ]; then
+    set +e
+    local exit_code="0"
+    local -r status="$(az account show 2>&1)"
+    exit_code="$?"
+    set -e
+    if [ "${exit_code}" != "0" ]; then
+      az login || exit 1
+    fi
   fi
 }
 
