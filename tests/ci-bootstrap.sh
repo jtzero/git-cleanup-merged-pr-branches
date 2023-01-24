@@ -69,12 +69,18 @@ EOF
     apt update && apt install gh -y
 }
 
+set_up_azure() {
+  curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  az extension add --name azure-devops
+  git remote add origin "https://jtzero:${AZURE_DEVOPS_EXT_PAT}@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
+}
+
 set_up_hook() {
   local -r cwd="${1}"
   mkdir ../hooks
   mkdir -p .git/hooks
-  local up_dir="$(dirname "${cwd}")"
-  local install_dir="${up_dir}/gcmpb"
+  local -r up_dir="$(dirname "${cwd}")"
+  local -r install_dir="${up_dir}/gcmpb"
   mkdir -p "${install_dir}"
   cp -r ./* "${install_dir}/"
   ln -nfs "${install_dir}/bin/git-cleanup-merged-pr-branches-git-hook" ./.git/hooks/post-checkout
@@ -108,6 +114,8 @@ if [ "${VCS}" = "gitlab" ]; then
   set_up_gitlab
 elif [ "${VCS}" = "github" ]; then
   set_up_github "${HOME}" "${GITHUB_DEPLOY_KEY}"
+elif [ "${VCS}" = "azure" ]; then
+  set_up_azure
 else
   printerr "Unknown VCS:'${VCS}'"
 fi

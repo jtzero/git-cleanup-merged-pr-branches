@@ -16,12 +16,21 @@ pre_init_hook() {
   fi
 }
 
+get_project_from_url() {
+  local url="${1}"
+
+  if [[ "${url}" = https://* ]]; then
+    printf '%s' "${url}" | cut -d'/' -f 5
+  else
+    printf '%s' "${url}" | cut -d':' -f2 | cut -d'.' -f1 | cut -d '/' -f3
+  fi
+}
+
 get_states() {
   local -r remote_with_branch="${1}"
   local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  local -r version_and_org_and_project_and_repo="$(git remote get-url --push "${remote}" | cut -d':' -f2 | cut -d'.' -f1)"
-  local -r project="$(echo "${version_and_org_and_project_and_repo}" | cut -d '/' -f3)"
+  local -r project="$(get_project_from_url "$(git remote get-url --push "${remote}")")"
   az repos pr list --detect true --project "${project}" --source-branch "${branch}" --status all | jq -r '[.[] | {state: .status, id: .pullRequestId }]'
 }
 

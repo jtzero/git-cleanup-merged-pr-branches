@@ -52,6 +52,13 @@ smoke-test-github:
     - echo "${GCMPB_GH_API_TOKEN}" > "${GCMPB_GH_FILE_TOKEN}"
     - ./tests/ci-bootstrap.sh
 
+smoke-test-azure:
+  stage: test
+  variables:
+    VCS: azure
+  script:
+    - ./tests/ci-bootstrap.sh
+
 lint-test:
   stage: test
   script:
