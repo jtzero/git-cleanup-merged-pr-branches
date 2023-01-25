@@ -98,6 +98,13 @@ spin() {
   done
 }
 
+kill_spinner_if_running() {
+  local spinner_pid="${1}"
+  if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
+    kill "${spinner_pid}"
+  fi
+}
+
 clean_pr_merged_branches() {
   local branches_to_check="${1}"
   local auto_apply="${2:-false}"
@@ -110,6 +117,8 @@ clean_pr_merged_branches() {
   if [ "${spinner}" = "true" ]; then
     (spin 'checking for dead branches') &
     spinner_pid=$!
+    # shellcheck disable=SC2064
+    trap "kill_spinner_if_running '${spinner_pid}'" EXIT
   fi
   for remote_branch_and_local_branch in $branches_to_check; do
     local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr="" decision="" decision_command=""
@@ -143,17 +152,13 @@ clean_pr_merged_branches() {
     fi
   done
   if [ ${#toDelete[@]} -gt 0 ]; then
-    if [ -n "${spinner_pid}" ]; then
-      kill "${spinner_pid}"
-    fi
+    kill_spinner_if_running "${spinner_pid}"
     printf '\n%s' '- '
     array_join $'\n- ' "${toDeleteMessages[@]}"
     printf '%s\n' "Prune tracking branches"
     interactive_delete "${auto_apply}" "${toDelete[@]}"
   else
-    if [ -n "${spinner_pid}" ]; then
-      kill "${spinner_pid}"
-    fi
+    kill_spinner_if_running "${spinner_pid}"
   fi
 }
 
