@@ -37,3 +37,9 @@ get_only_completed() {
   local states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state != "MERGED" and .state != "CLOSED")) | length == 0'
 }
+
+branch_was_deleted_remotely() {
+  local -r remote_with_branch="${1}"
+  local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
+  gh api 'repos/{owner}/{repo}/events' --jq '.[] | select(.type=="DeleteEvent").payload | select(.ref_type=="branch" and .ref=="'"${branch}"'").ref=="'"${branch}"'"'
+}

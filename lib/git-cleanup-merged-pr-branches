@@ -113,6 +113,8 @@ clean_pr_merged_branches() {
   local spinner="${4:-true}"
   local toDelete=()
   local toDeleteMessages=()
+  local dangling=()
+  local danglingMessages=()
   local -r platforms_available="$(available_platforms "${GCMPB_DIR}/platforms")"
   local spinner_pid=""
   if [ "${spinner}" = "true" ]; then
@@ -148,6 +150,10 @@ clean_pr_merged_branches() {
       toDelete[${#toDelete[@]}]="${local_branch}"
       local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
       toDeleteMessages[${#toDeleteMessages[@]}]="${message_and_rest}"
+    elif [ "${decision_command}" = "${DECIDE_WARNING_DELETED_ON_REMOTE}" ]; then
+      dangling[${#dangling[@]}]="${local_branch}"
+      local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
+      danglingMessages[${#danglingMessages[@]}]="${message_and_rest}"
     else
       if [ "${verbose}" = "true" ]; then
         local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2- -z | tr -d '\0')"
@@ -155,18 +161,28 @@ clean_pr_merged_branches() {
       fi
     fi
   done
-  if [ ${#toDelete[@]} -gt 0 ]; then
+  if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ]; then
     kill_spinner_if_running "${spinner_pid}"
-    printf '\n%s' '- '
-    array_join $'\n- ' "${toDeleteMessages[@]}"
+    printf '%s\n' '==='
+    if [ ${#toDelete[@]} -gt 0 ]; then
+      printf '%s\n' "The following had PR's and can be deleted"
+      printf '%s' '- '
+      array_join $'\n- ' "${toDeleteMessages[@]}"
+    fi
+    if [ ${#dangling[@]} -gt 0 ]; then
+      printf '%s\n' "The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
+      printf '%s' '- '
+      array_join $'\n- ' "${danglingMessages[@]}"
+    fi
     printf '%s\n' "Prune tracking branches"
-    interactive_delete "${auto_apply}" "${toDelete[@]}"
+    interactive_delete "${auto_apply}" "${toDelete[@]}" "|" "${dangling[@]}"
   else
     kill_spinner_if_running "${spinner_pid}"
   fi
 }
 
 DECIDE_DELETE='delete'
+DECIDE_WARNING_DELETED_ON_REMOTE='warning_deleted_on_remote'
 DECIDE_SKIP='skip'
 
 decide() {
@@ -181,7 +197,7 @@ decide() {
   . "${platform_file}"
 
   local -r type_result="$(type pre_init_hook 2>&1)"
-  if ! (echo "${type_result}" | grep -sq 'not found'); then
+  if ! (printf '%s' "${type_result}" | grep -sq 'not found'); then
     pre_init_hook "${spinner_pid}"
   fi
 
@@ -204,7 +220,16 @@ decide() {
       printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} has open pr's, not deleting" "${states}"
     fi
   else
-    printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} never had a pr, not deleting" "${states}"
+    local deleted_remotely="false"
+    local -r remotely_deleted_type_result="$(type branch_was_deleted_remotely 2>&1)"
+    if ! (printf '%s' "${remotely_deleted_type_result}" | grep -sq 'not found'); then
+      deleted_remotely="$(branch_was_deleted_remotely "${remote_branch}")"
+    fi
+    if [ "${deleted_remotely}" = "true" ]; then
+      printf '%s:%s:%s' "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${remote_branch_and_local_branch} never had a pr, but was deleted on remote" "${states}"
+    else
+      printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} never had a pr, not deleting" "${states}"
+    fi
   fi
 }
 
@@ -231,18 +256,31 @@ ask() {
 
 interactive_delete() {
   local -r auto_apply="${1}"
-  local toDelete=("${@:2}")
+  local items=("${@:2}")
+  local index=0
+  for item in "${items[@]}"; do
+    if [ "${item}" == "|" ]; then
+      break
+    fi
+    ((++index))
+  done
+
+  local -r toDelete=("${items[@]:0:$index}")
+  local -r dangling=("${items[@]:(($index + 1))}")
+
   local apply='n'
   local -r verbose="${GCMPB_VERBOSE:-}"
   if [ "${auto_apply}" = "true" ]; then
     apply='y'
   else
-    apply="$(ask 'apply changes? (y/n/p) ')"
+    apply="$(ask 'apply changes? (y/n/p/i) ')"
   fi
   if [ "${apply}" = "y" ]; then
     delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
+  elif [ "${apply}" = "i" ]; then
+    delete_branches "$(echo "${toDelete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
   elif [ "${apply}" = "p" ]; then
-    for branch in "${toDelete[@]}"; do
+    for branch in "${items[@]}"; do
       local should_delete='n'
       should_delete="$(ask "${branch}:delete? (y/n)")"
       if [ "${should_delete}" = "y" ]; then
@@ -285,6 +323,7 @@ interactive_help() {
   Interactive options: (case sensitive)
     y: yes
     n: no
+    i: include dangling
     p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p
     h: print this help
 EOS
