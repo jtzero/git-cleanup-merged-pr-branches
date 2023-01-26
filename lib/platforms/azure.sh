@@ -14,23 +14,28 @@ COMPLETED_STATES=('completed' 'abandoned')
 select_option() {
 
   # little helpers for terminal print control and key input
-  ESC=$( printf "\033")
-  cursor_blink_on()  { printf "$ESC[?25h"; }
+  ESC=$(printf "\033")
+  cursor_blink_on() { printf "$ESC[?25h"; }
   cursor_blink_off() { printf "$ESC[?25l"; }
-  cursor_to()        { printf "$ESC[$1;${2:-1}H"; }
-  print_option()     { printf "   $1 "; }
-  print_selected()   { printf "  $ESC[7m $1 $ESC[27m"; }
-  get_cursor_row()   { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
-  key_input()        { read -s -n3 key 2>/dev/null >&2
-                       if [[ $key = $ESC[A ]]; then echo up;    fi
-                       if [[ $key = $ESC[B ]]; then echo down;  fi
-                       if [[ $key = ""     ]]; then echo enter; fi; }
+  cursor_to() { printf "$ESC[$1;${2:-1}H"; }
+  print_option() { printf "   $1 "; }
+  print_selected() { printf "  $ESC[7m $1 $ESC[27m"; }
+  get_cursor_row() {
+    IFS=';' read -sdR -p $'\E[6n' ROW COL
+    echo ${ROW#*[}
+  }
+  key_input() {
+    read -s -n3 key 2>/dev/null >&2
+    if [[ $key = $ESC[A ]]; then echo up; fi
+    if [[ $key = $ESC[B ]]; then echo down; fi
+    if [[ $key = "" ]]; then echo enter; fi
+  }
 
   # initially print empty new lines (scroll down if at bottom of screen)
   for opt; do printf "\n"; done
 
   # determine current screen position for overwriting the options
-  local lastrow=`get_cursor_row`
+  local lastrow=$(get_cursor_row)
   local startrow=$(($lastrow - $#))
 
   # ensure cursor and input echoing back on upon a ctrl+c during read -s
@@ -39,33 +44,36 @@ select_option() {
 
   local selected=0
   while true; do
-      # print options by overwriting the last lines
-      local idx=0
-      for opt; do
-          cursor_to $(($startrow + $idx))
-          if [ $idx -eq $selected ]; then
-              print_selected "$opt"
-          else
-              print_option "$opt"
-          fi
-          ((idx++))
-      done
+    # print options by overwriting the last lines
+    local idx=0
+    for opt; do
+      cursor_to $(($startrow + $idx))
+      if [ $idx -eq $selected ]; then
+        print_selected "$opt"
+      else
+        print_option "$opt"
+      fi
+      ((idx++))
+    done
 
-      # user key control
-      case `key_input` in
-          enter) break;;
-          up)    ((selected--));
-                 if [ $selected -lt 0 ]; then selected=$(($# - 1)); fi;;
-          down)  ((selected++));
-                 if [ $selected -ge $# ]; then selected=0; fi;;
-      esac
+    # user key control
+    case $(key_input) in
+    enter) break ;;
+    up)
+      ((selected--))
+      if [ $selected -lt 0 ]; then selected=$(($# - 1)); fi
+      ;;
+    down)
+      ((selected++))
+      if [ $selected -ge $# ]; then selected=0; fi
+      ;;
+    esac
   done
 
   # cursor position back to normal
   cursor_to "${lastrow}"
   printf "\n"
   cursor_blink_on
-
 
   return $selected
 }
@@ -74,7 +82,7 @@ ask_for_pat() {
   local config_folder="${1}"
   read -s -p "Token:" token
   mkdir -p "${config_folder}"
-  printf '%s' "${token}" > "${config_folder}/token"
+  printf '%s' "${token}" >"${config_folder}/token"
 }
 
 pre_init_hook() {
@@ -93,10 +101,17 @@ pre_init_hook() {
         kill "${spinner_pid}"
       fi
       local options=("PAT" "AZ Web SSO")
-      ( exec </dev/tty; exec 1>&2; select_option "${options[@]}" )
+      (
+        exec </dev/tty
+        exec 1>&2
+        select_option "${options[@]}"
+      )
       choice=$?
       if [ "${choice}" = "0" ]; then
-        ( exec </dev/tty; ask_for_pat "${AZ_CONFIG_HOME}" )
+        (
+          exec </dev/tty
+          ask_for_pat "${AZ_CONFIG_HOME}"
+        )
         AZURE_DEVOPS_EXT_PAT="$(<"${AZ_CONFIG_HOME}/token")"
         az devops login | exit 1
       else
