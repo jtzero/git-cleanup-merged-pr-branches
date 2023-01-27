@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-AZ_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}/az/token"
+AZ_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}/az"
 
 # shellcheck disable=SC2034
 COMPLETED_STATES=('completed' 'abandoned')
