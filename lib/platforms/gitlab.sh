@@ -33,3 +33,9 @@ get_only_completed() {
   local -r states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state != "merged" and .state != "closed")) | length == 0'
 }
+
+branch_was_deleted_remotely() {
+  local -r remote_with_branch="${1}"
+  local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
+  glab api /projects/:id/events | jq '.[] | select(.action_name=="deleted" and .push_data.ref_type=="branch" and .push_data.ref=="'"${branch}"'").push_data.ref=="'"${branch}"'"'
+}
