@@ -17,6 +17,10 @@ else
   IS_BASH=1
 fi
 
+RED=$'\e[0;31m'
+YELLOW=$'\e[1;33m'
+CLEAR_COLOR=$'\e[0m'
+
 printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 
 config_file_path() {
@@ -112,9 +116,7 @@ clean_pr_merged_branches() {
   local verbose="${3:-}"
   local spinner="${4:-true}"
   local toDelete=()
-  local toDeleteMessages=()
   local dangling=()
-  local danglingMessages=()
   local -r platforms_available="$(available_platforms "${GCMPB_DIR}/platforms")"
   local spinner_pid=""
   if [ "${spinner}" = "true" ]; then
@@ -127,7 +129,7 @@ clean_pr_merged_branches() {
     trap "kill_spinner_if_running '${spinner_pid}'" EXIT
   fi
   for remote_branch_and_local_branch in $branches_to_check; do
-    local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr="" decision="" decision_command=""
+    local remote_branch="" local_branch="" remote="" platform_query_result="" platform="" type_result="" states="" had_a_pr="" decision="" decision_command="" decision_message_and_rest=""
     remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
     local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
@@ -143,42 +145,44 @@ clean_pr_merged_branches() {
     fi
 
     local platform_path="${GCMPB_DIR}/platforms/${platform}.sh"
-
     decision="$(decide "${platform_path}" "${local_branch}" "${remote_branch}" "${remote_branch_and_local_branch}" "${spinner_pid}" "${verbose}")"
+    decision_message_and_rest="$(decision_message_and_rest "${decision}")"
     decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
     if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
       toDelete[${#toDelete[@]}]="${local_branch}"
-      local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
-      toDeleteMessages[${#toDeleteMessages[@]}]="${message_and_rest}"
     elif [ "${decision_command}" = "${DECIDE_WARNING_DELETED_ON_REMOTE}" ]; then
       dangling[${#dangling[@]}]="${local_branch}"
-      local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
-      danglingMessages[${#danglingMessages[@]}]="${message_and_rest}"
-    else
-      if [ "${verbose}" = "true" ]; then
-        local message_and_rest="$(printf '%s' "${decision}" | cut -d':' -f2- -z | tr -d '\0')"
-        printf '%s\n' "${message_and_rest}"
-      fi
+    fi
+    if [ "${verbose}" = "true" ]; then
+      printf '%s\n' "${decision_message_and_rest}"
     fi
   done
   if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ]; then
     kill_spinner_if_running "${spinner_pid}"
-    printf '%s\n' '==='
+    printf '\n%s\n' '==='
+    printf '%s\n' "${RED}The following had PR's and can be deleted"
     if [ ${#toDelete[@]} -gt 0 ]; then
-      printf '%s\n' "The following had PR's and can be deleted"
-      printf '%s' '- '
-      array_join $'\n- ' "${toDeleteMessages[@]}"
+      printf '%s' "- "
+      array_join '\n- ' "${toDelete[@]}"
+      printf '\n'
     fi
+    printf '%s\n' "- Prune tracking branches"
+    printf '%s' "${CLEAR_COLOR}"
     if [ ${#dangling[@]} -gt 0 ]; then
-      printf '%s\n' "The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
-      printf '%s' '- '
-      array_join $'\n- ' "${danglingMessages[@]}"
+      printf '%s\n' "${YELLOW}The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
+      printf '%s' '~ '
+      array_join '\n~ ' "${dangling[@]}"
+      printf '%s\n' "${CLEAR_COLOR}"
     fi
-    printf '%s\n' "Prune tracking branches"
     interactive_delete "${auto_apply}" "${toDelete[@]}" "|" "${dangling[@]}"
   else
     kill_spinner_if_running "${spinner_pid}"
   fi
+}
+
+decision_message_and_rest() {
+  local decision="${1}"
+  printf '%s' "${decision}" | cut -d':' -f3 -z | tr -d '\0'
 }
 
 DECIDE_DELETE='delete'
@@ -211,13 +215,12 @@ decide() {
       local only_completed=""
       only_completed="$(get_only_completed "${states}")"
       if [ "${only_completed}" = "true" ]; then
-        local message="${local_branch} would be deleted"
-        printf '%s:%s:%s' "${DECIDE_DELETE}" "${message}" "${states}"
+        printf '%s:%s:%s:%s' "${DECIDE_DELETE}" "${local_branch}" "${remote_branch_and_local_branch} had a pr that completed" "${states}"
       else
-        printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
+        printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${remote_branch_and_local_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
       fi
     else
-      printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} has open pr's, not deleting" "${states}"
+      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${remote_branch_and_local_branch} has open pr's, not deleting" "${states}"
     fi
   else
     local deleted_remotely="false"
@@ -226,9 +229,9 @@ decide() {
       deleted_remotely="$(branch_was_deleted_remotely "${remote_branch}")"
     fi
     if [ "${deleted_remotely}" = "true" ]; then
-      printf '%s:%s:%s' "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${remote_branch_and_local_branch} never had a pr, but was deleted on remote" "${states}"
+      printf '%s:%s::%s:%s' "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${remote_branch_and_local_branch} never had a pr, but was deleted on remote" "${states}"
     else
-      printf '%s:%s:%s' "${DECIDE_SKIP}" "${remote_branch_and_local_branch} never had a pr, not deleting" "${states}"
+      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${remote_branch_and_local_branch} never had a pr, not deleting" "${states}"
     fi
   fi
 }
@@ -236,9 +239,13 @@ decide() {
 array_join() {
   local -r delimiter="${1}"
   local array=("${@:2}")
-  for item in "${array[@]}"; do
-    printf "%s${delimiter}" "${item}"
-  done
+  if [ ${#array[@]} -gt 1 ]; then
+    for item in "${array[@]}"; do
+      printf "%s${delimiter}" "${item}"
+    done
+  else
+    printf '%s' "${array[0]}"
+  fi
 }
 
 ask() {
