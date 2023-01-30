@@ -88,7 +88,11 @@ ask_for_pat() {
 pre_init_hook() {
   local -r spinner_pid="${1}"
 
-  local -r cached_pat="$(<"${AZ_CONFIG_HOME}/token")"
+  if [ -d "${AZ_CONFIG_HOME}" ]; then
+    local -r cached_pat="$(<"${AZ_CONFIG_HOME}/token")"
+  else
+    local -r cached_pat=''
+  fi
   AZURE_DEVOPS_EXT_PAT="${AZURE_DEVOPS_EXT_PAT:-${cached_pat}}"
 
   if [ -z "${AZURE_DEVOPS_EXT_PAT:-}" ]; then
