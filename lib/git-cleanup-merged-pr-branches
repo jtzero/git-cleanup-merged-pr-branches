@@ -102,7 +102,7 @@ spin() {
 kill_spinner_if_running() {
   local spinner_pid="${1}"
   if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
-    kill "${spinner_pid}"
+    kill "${spinner_pid}" >/dev/null 2>&1
   fi
 }
 
