@@ -153,3 +153,14 @@ get_only_completed() {
   local states="${*}"
   printf '%s\n' "${states}" | jq 'map(select(.state != "completed" and .state != "abandoned")) | length == 0'
 }
+
+declare -r EMPTY_OBJECT_ID='0000000000000000000000000000000000000000'
+
+branch_was_deleted_remotely() {
+  local -r remote_with_branch="${1}"
+  local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
+  local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
+  local -r project_name="$(get_project_from_url "$(git remote get-url --push "${remote}")")"
+  local -r url="$(az repos show -r "${project_name}" | jq -r '.url')"
+  az rest --only-show-errors -u "${url}/pushes?%24skip=0&%24top=1&searchCriteria.refName=refs/heads/${branch}&searchCriteria.includeRefUpdates=true" | jq -r '.value[0].refUpdates[0].newObjectId=="'"${EMPTY_OBJECT_ID}"'"'
+}
