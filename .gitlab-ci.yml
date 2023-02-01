@@ -59,6 +59,11 @@ smoke-test-azure:
   script:
     - ./tests/ci-bootstrap.sh
 
+prevent-lightweight-tags:
+  stage: test
+  script:
+    - ./libexec/no-lightweight-tags
+
 lint-test:
   stage: test
   script:

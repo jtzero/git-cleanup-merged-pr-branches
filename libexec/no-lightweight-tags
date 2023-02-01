@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
+
+
+lightweight_tags="$(git for-each-ref refs/tags | grep commit)"
+
+if [ "$(printf '%s' "${lightweight_tags}" | wc -l)" != "0" ]; then
+  printerr "lightweight tags are prohibited"
+  printerr "${lightweight_tags}"
+  exit 1
+fi
