@@ -5,6 +5,41 @@ AZ_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}/az"
 # shellcheck disable=SC2034
 COMPLETED_STATES=('completed' 'abandoned')
 
+source_cache_config() {
+  local -r remote="${1}"
+  local -r config_file="$(git rev-parse --show-toplevel)/.git/info/cleanup-az-cache-${remote}"
+  touch "${config_file}" >/dev/null
+  #shellcheck source=/dev/null
+  . "${config_file}"
+}
+
+set_cache_config() {
+  local -r remote="${1}"
+  local -r blob="${2}"
+  local -r config_file="$(git rev-parse --show-toplevel)/.git/info/cleanup-az-cache-${remote}"
+  printf '%s' "${blob}" >"${config_file}"
+}
+
+load_cache() {
+  local -r remote="${1}"
+  AZ_REMOTE="${AZ_REMOTE:-}"
+  if [ -z "${AZ_REMOTE}" ]; then
+    source_cache_config "${remote}"
+  fi
+  if [ "${AZ_REMOTE}" != "${remote}" ]; then
+    AZ_REMOTE="${remote}"
+    AZ_PROJECT_NAME="$(get_project_from_url "$(git remote get-url --push "${remote}")")"
+    AZ_PROJECT_URL="$(az repos show -r "${AZ_PROJECT_NAME}" | jq -r '.url')"
+    set_cache_config "${remote}" "$(
+      cat <<EOF
+  AZ_REMOTE="${remote}"
+  AZ_PROJECT_NAME="${AZ_PROJECT_NAME}"
+  AZ_PROJECT_URL="${AZ_PROJECT_URL}"
+EOF
+    )"
+  fi
+}
+
 # Renders a text based list of options that can be selected by the
 # user using up, down and enter keys and returns the chosen option.
 #
@@ -145,8 +180,8 @@ get_states() {
   local -r remote_with_branch="${1}"
   local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  local -r project="$(get_project_from_url "$(git remote get-url --push "${remote}")")"
-  az repos pr list --detect true --project "${project}" --source-branch "${branch}" --status all | jq -r '[.[] | {state: .status, id: .pullRequestId }]'
+  load_cache "${remote}"
+  az repos pr list --detect true --project "${AZ_PROJECT_NAME}" --source-branch "${branch}" --status all | jq -r '[.[] | {state: .status, id: .pullRequestId }]'
 }
 
 get_any_open_states() {
@@ -165,7 +200,6 @@ branch_was_deleted_remotely() {
   local -r remote_with_branch="${1}"
   local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  local -r project_name="$(get_project_from_url "$(git remote get-url --push "${remote}")")"
-  local -r url="$(az repos show -r "${project_name}" | jq -r '.url')"
-  az rest --only-show-errors -u "${url}/pushes?%24skip=0&%24top=1&searchCriteria.refName=refs/heads/${branch}&searchCriteria.includeRefUpdates=true" | jq -r '.value[0].refUpdates[0].newObjectId=="'"${EMPTY_OBJECT_ID}"'"'
+  load_cache "${remote}"
+  az rest --only-show-errors -u "${AZ_PROJECT_URL}/pushes?%24skip=0&%24top=1&searchCriteria.refName=refs/heads/${branch}&searchCriteria.includeRefUpdates=true" | jq -r '.value[0].refUpdates[0].newObjectId=="'"${EMPTY_OBJECT_ID}"'"'
 }
