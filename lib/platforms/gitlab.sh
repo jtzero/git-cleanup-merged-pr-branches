@@ -13,7 +13,7 @@ pre_init_hook() {
     if [ -f "${GCMPB_GL_FILE_TOKEN}" ]; then
       glab auth login --stdin <"${GCMPB_GL_FILE_TOKEN}" || exit 1
     else
-      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1 ; then
+      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
         kill -TSTP "${spinner_pid}"
         retore_spinner="true"
       fi

@@ -16,7 +16,7 @@ pre_init_hook() {
     if [ -f "${GCMPB_GH_FILE_TOKEN}" ]; then
       gh auth login --with-token <"${GCMPB_GH_FILE_TOKEN}"
     else
-      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1 ; then
+      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
         kill -TSTP "${spinner_pid}"
         retore_spinner="true"
       fi

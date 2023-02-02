@@ -102,7 +102,7 @@ pre_init_hook() {
     command_output="$(az account show 2>&1)"
     exit_code="$?"
     if [ "${exit_code}" != "0" ]; then
-      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1 ; then
+      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
         kill -TSTP "${spinner_pid}"
         retore_spinner="true"
       fi
