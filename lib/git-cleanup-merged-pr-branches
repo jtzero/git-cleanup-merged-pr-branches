@@ -140,7 +140,8 @@ clean_pr_merged_branches() {
     platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
 
     if [ "${result}" = "not_found" ]; then
-      printf '%s' "${platform} in ${GCMPB_DIR}/platforms/" "$(ls "${GCMPB_DIR}/platforms/")"
+      kill_spinner_if_running "${spinner_pid}"
+      printf '%s\n%s\n' "${platform} in ${GCMPB_DIR}/platforms/" "$(ls "${GCMPB_DIR}/platforms/")"
       exit 22
     fi
 
