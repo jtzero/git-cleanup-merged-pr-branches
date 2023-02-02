@@ -5,6 +5,8 @@ COMPLETED_STATES=('MERGED' 'CLOSED')
 GCMPB_GH_FILE_TOKEN="${GCMPB_GH_FILE_TOKEN:-''}"
 
 pre_init_hook() {
+  local -r spinner_pid="${1}"
+  local retore_spinner="false"
   set +e
   local exit_code="0"
   status="$(gh auth status 2>&1)"
@@ -14,8 +16,18 @@ pre_init_hook() {
     if [ -f "${GCMPB_GH_FILE_TOKEN}" ]; then
       gh auth login --with-token <"${GCMPB_GH_FILE_TOKEN}"
     else
-      exec </dev/tty
-      gh auth login || exit 1
+      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1 ; then
+        kill -TSTP "${spinner_pid}"
+        retore_spinner="true"
+      fi
+      (
+        exec </dev/tty
+        exec 1>&2
+        gh auth login || exit 1
+      ) || exit 1
+      if [ "${retore_spinner}" = "true" ]; then
+        kill -CONT "${spinner_pid}"
+      fi
     fi
   fi
 }

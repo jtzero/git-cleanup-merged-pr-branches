@@ -87,6 +87,7 @@ ask_for_pat() {
 
 pre_init_hook() {
   local -r spinner_pid="${1}"
+  local retore_spinner="false"
 
   if [ -d "${AZ_CONFIG_HOME}" ]; then
     local -r cached_pat="$(<"${AZ_CONFIG_HOME}/token")"
@@ -101,8 +102,9 @@ pre_init_hook() {
     command_output="$(az account show 2>&1)"
     exit_code="$?"
     if [ "${exit_code}" != "0" ]; then
-      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
-        kill "${spinner_pid}"
+      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1 ; then
+        kill -TSTP "${spinner_pid}"
+        retore_spinner="true"
       fi
       local options=("PAT" "AZ Web SSO")
       (
@@ -120,6 +122,9 @@ pre_init_hook() {
         az devops login | exit 1
       else
         az login || exit 1
+      fi
+      if [ "${retore_spinner}" = "true" ]; then
+        kill -CONT "${spinner_pid}"
       fi
       set -e
     fi

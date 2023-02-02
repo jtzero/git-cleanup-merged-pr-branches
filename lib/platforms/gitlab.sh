@@ -6,13 +6,25 @@ COMPLETED_STATES=('merged' 'closed')
 GCMPB_GL_FILE_TOKEN="${GCMPB_GL_FILE_TOKEN:-''}"
 
 pre_init_hook() {
+  local -r spinner_pid="${1}"
+  local retore_spinner="false"
   local -r has_errors="$(glab auth status 2>&1 | grep 'x')"
   if [ -n "${has_errors}" ]; then
     if [ -f "${GCMPB_GL_FILE_TOKEN}" ]; then
       glab auth login --stdin <"${GCMPB_GL_FILE_TOKEN}" || exit 1
     else
-      exec </dev/tty
-      glab auth login || exit 1
+      if kill -s 0 "${spinner_pid}" >/dev/null 2>&1 ; then
+        kill -TSTP "${spinner_pid}"
+        retore_spinner="true"
+      fi
+      (
+        exec </dev/tty
+        exec 1>&2
+        glab auth login || exit 1
+      ) || exit 1
+      if [ "${retore_spinner}" = "true" ]; then
+        kill -CONT "${spinner_pid}"
+      fi
     fi
   fi
 }
