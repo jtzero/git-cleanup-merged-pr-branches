@@ -374,7 +374,7 @@ run() {
   local spinner="${6:-true}"
   local interactive_rebase_in_progress=false
 
-  if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -qiE 'rebase.*interactive'; then
+  if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
     interactive_rebase_in_progress=true
   fi
 
