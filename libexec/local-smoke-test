@@ -9,12 +9,15 @@ else
   LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 fi
 
+TMP_DIR="$(dirname "${LIBEXEC_DIR}")/tmp"
+
 docker volume create gcmpb-asdf
 
 docker run -ti \
   --env VCS=github \
   --env GCMPB_GH_FILE_TOKEN="/root/git-cleanup-merged-pr-branches/tmp/GCMPB_GH_FILE_TOKEN" \
   --env GITHUB_DEPLOY_KEY="/root/git-cleanup-merged-pr-branches/tmp/GITHUB_DEPLOY_KEY" \
+  --env AZURE_DEVOPS_EXT_PAT="$(cat "${TMP_DIR}/AZURE_DEVOPS_EXT_PAT")" \
   --mount source=gcmpb-asdf,target=/root/.asdf \
   -v "$(dirname "${LIBEXEC_DIR}")":/root/git-cleanup-merged-pr-branches \
   -w /root/git-cleanup-merged-pr-branches \

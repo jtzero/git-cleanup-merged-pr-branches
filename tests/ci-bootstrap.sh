@@ -70,8 +70,11 @@ EOF
 }
 
 set_up_azure() {
+  local home_dir="{1}"
   curl -sL https://aka.ms/InstallAzureCLIDeb | bash
   az extension add --name azure-devops
+  ssh-keyscan -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
+  ssh-keyscan -t rsa -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
   git remote add origin "https://jtzero:${AZURE_DEVOPS_EXT_PAT}@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
 }
 
@@ -115,7 +118,7 @@ if [ "${VCS}" = "gitlab" ]; then
 elif [ "${VCS}" = "github" ]; then
   set_up_github "${HOME}" "${GITHUB_DEPLOY_KEY}"
 elif [ "${VCS}" = "azure" ]; then
-  set_up_azure
+  set_up_azure "${HOME}"
 else
   printerr "Unknown VCS:'${VCS}'"
 fi
