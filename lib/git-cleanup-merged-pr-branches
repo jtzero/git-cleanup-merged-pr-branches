@@ -162,8 +162,8 @@ clean_pr_merged_branches() {
         remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
         local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
-        printf '%s:%s' "${local_branch}" "$(decide "${local_branch}" "${remote_branch}" "${remote_branch_and_local_branch}" "${spinner_pid}" "${verbose}")" | base64
-        printverbose "${verbose}" "${decision_message_and_rest}"
+        decided="$(decide "${local_branch}" "${remote_branch}" "${remote_branch_and_local_branch}" "${spinner_pid}" "${verbose}")"
+        printf '%s\n' "$(printf '%s:%s' "${local_branch}" "${decided}" | base64 -w 0)"
       done
     )"
     for base64_decision in ${decisions}; do
