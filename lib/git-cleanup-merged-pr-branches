@@ -26,7 +26,7 @@ printverbose() {
   local verbose="${1}"
   local rest="${*:2}"
   if [ "${verbose}" = 'true' ]; then
-    printf "\093[0;33m%s\033[0m\n" "${rest}" >&2
+    printf "\n\033[0;93m%s\033[0m\n" "${rest}" >&2
   fi
 }
 
@@ -171,6 +171,7 @@ clean_pr_merged_branches() {
       decision="$(base64 -d <<<"${base64_decision}")"
       local_branch="$(printf '%s' "${decision}" | cut -d':' -f1)"
       decision_message_and_rest="$(decision_message_and_rest "${decision}")"
+      printverbose "${verbose}" "${decision}"
       decision_command="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
       if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
         toDelete[${#toDelete[@]}]="${local_branch}"
