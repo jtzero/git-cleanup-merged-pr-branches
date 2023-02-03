@@ -194,12 +194,18 @@ get_only_completed() {
   printf '%s\n' "${states}" | jq 'map(select(.state != "completed" and .state != "abandoned")) | length == 0'
 }
 
+declare -r AZ_DEVOPS_RESOURCE_ID='499b84ac-1321-427f-aa17-267ca6975798'
 declare -r EMPTY_OBJECT_ID='0000000000000000000000000000000000000000'
 
 branch_was_deleted_remotely() {
   local -r remote_with_branch="${1}"
   local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
+  local resource_arg=""
   load_cache "${remote}"
-  az rest --only-show-errors -u "${AZ_PROJECT_URL}/pushes?%24skip=0&%24top=1&searchCriteria.refName=refs/heads/${branch}&searchCriteria.includeRefUpdates=true" | jq -r '.value[0].refUpdates[0].newObjectId=="'"${EMPTY_OBJECT_ID}"'"'
+  if [ -z "${AZURE_DEVOPS_EXT_PAT:-}" ]; then
+    resource_arg="--resource ${AZ_DEVOPS_RESOURCE_ID}"
+  fi
+  #shellcheck disable=SC2086
+  az rest --only-show-errors ${resource_arg} -u "${AZ_PROJECT_URL}/pushes?%24skip=0&%24top=1&searchCriteria.refName=refs/heads/${branch}&searchCriteria.includeRefUpdates=true" | jq -r '.value[0].refUpdates[0].newObjectId=="'"${EMPTY_OBJECT_ID}"'"'
 }
