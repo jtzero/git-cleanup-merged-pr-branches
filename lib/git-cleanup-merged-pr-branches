@@ -162,17 +162,17 @@ clean_pr_merged_branches() {
         remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
         local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
-        decided="$(decide "${local_branch}" "${remote_branch}" "${remote_branch_and_local_branch}" "${spinner_pid}" "${verbose}")"
-        printf '%s\n' "$(printf '%s:%s' "${local_branch}" "${decided}" | base64 -w 0)"
+        decided="$(decide "${local_branch}" "${remote_branch}" "${spinner_pid}" "${verbose}")"
+        printf '%s\n' "$(printf '%s' "${decided}" | base64 -w 0)"
       done
     )"
     for base64_decision in ${decisions}; do
       local decision='' local_branch=''
       decision="$(base64 -d <<<"${base64_decision}")"
-      local_branch="$(printf '%s' "${decision}" | cut -d':' -f1)"
-      decision_message_and_rest="$(decision_message_and_rest "${decision}")"
+      local_branch="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
+      decision_message_and_rest="$(parse_decision_message_and_rest "${decision}")"
       printverbose "${verbose}" "${decision}"
-      decision_command="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
+      decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
       if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
         toDelete[${#toDelete[@]}]="${local_branch}"
 
@@ -208,9 +208,9 @@ clean_pr_merged_branches() {
   fi
 }
 
-decision_message_and_rest() {
+parse_decision_message_and_rest() {
   local decision="${1}"
-  printf '%s' "${decision}" | cut -d':' -f4 -z | tr -d '\0'
+  printf '%s' "${decision}" | cut -d':' -f3-
 }
 
 DECIDE_DELETE='delete'
@@ -220,9 +220,8 @@ DECIDE_SKIP='skip'
 decide() {
   local -r local_branch="${1}"
   local -r remote_branch="${2}"
-  local -r remote_branch_and_local_branch="${3}"
-  local -r spinner_pid="${4}"
-  local -r verbose="${5:-false}"
+  local -r spinner_pid="${3}"
+  local -r verbose="${4:-false}"
 
   local -r type_result="$(type pre_init_hook 2>&1)"
   if ! (printf '%s' "${type_result}" | grep -sq 'not found'); then
@@ -239,12 +238,12 @@ decide() {
       local only_completed=""
       only_completed="$(get_only_completed "${states}")"
       if [ "${only_completed}" = "true" ]; then
-        printf '%s:%s:%s:%s' "${DECIDE_DELETE}" "${local_branch}" "${remote_branch_and_local_branch} had a pr that completed" "${states}"
+        printf '%s:%s:%s:%s' "${DECIDE_DELETE}" "${local_branch}" "${local_branch}->${remote_branch} had a pr that completed" "${states}"
       else
-        printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${remote_branch_and_local_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
+        printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
       fi
     else
-      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${remote_branch_and_local_branch} has open pr's, not deleting" "${states}"
+      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has open pr's, not deleting" "${states}"
     fi
   else
     local deleted_remotely="false"
@@ -253,9 +252,9 @@ decide() {
       deleted_remotely="$(branch_was_deleted_remotely "${remote_branch}")"
     fi
     if [ "${deleted_remotely}" = "true" ]; then
-      printf '%s:%s::%s:%s' "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${remote_branch_and_local_branch} never had a pr, but was deleted on remote" "${states}"
+      printf '%s:%s::%s:%s' "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, but was deleted on remote" "${states}"
     else
-      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${remote_branch_and_local_branch} never had a pr, not deleting" "${states}"
+      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, not deleting" "${states}"
     fi
   fi
 }
