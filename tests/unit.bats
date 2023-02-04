@@ -49,3 +49,40 @@ setup() {
   unset -f git
   assert_output ''
 }
+
+@test "prune_tracking" {
+  output=""
+  git() {
+    output="${*}"
+  }
+  remotes_to_prune=('origin' 'upstream')
+  prune_tracking "${remotes_to_prune[*]}"
+  assert_output 'remote prune origin upstream'
+}
+
+@test "interactive_prune_tracking" {
+  git() {
+    local remote_one="$(printf '%s' "${3}" | cut -d ' ' -f1)"
+    local remote_two="$(printf '%s' "${3}" | cut -d ' ' -f2)"
+    cat<<-EOF
+Pruning ${remote_one}
+URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
+ * [pruning] origin/testing
+Pruning ${remote_two}
+URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
+ * [pruning] upstream/testing
+EOF
+  }
+  local -r remotes_to_prune=('origin' 'upstream')
+  output="$(interactive_prune_tracking true "${remotes_to_prune[*]}" <<<$(printf $'y\n'))"
+  local -r expected="$(cat<<EOF
+Pruning origin
+URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
+ * [pruning] origin/testing
+Pruning upstream
+URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
+ * [pruning] upstream/testing
+EOF
+)"
+  assert_output "${expected}"
+}

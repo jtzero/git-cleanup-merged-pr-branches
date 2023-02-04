@@ -158,7 +158,7 @@ clean_pr_merged_branches() {
       . "${platform_path}"
 
       for remote_branch_and_local_branch in $remote_group; do
-        local remote_branch='' local_branch='' platform_query_result='' platform='' decision='' decision_command='' decision_message_and_rest=''
+        local remote_branch='' local_branch='' platform_query_result='' platform='' decision='' decision_command=''
         remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
         local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
 
@@ -170,7 +170,6 @@ clean_pr_merged_branches() {
       local decision='' local_branch=''
       decision="$(base64 -d <<<"${base64_decision}")"
       local_branch="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
-      decision_message_and_rest="$(parse_decision_message_and_rest "${decision}")"
       printverbose "${verbose}" "${decision}"
       decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
       if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
@@ -182,7 +181,10 @@ clean_pr_merged_branches() {
     done
   done
 
-  if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ]; then
+  # shellcheck disable=SC2046
+  local -r pruneable="$(git remote prune -n $(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' '))"
+
+  if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ]; then
     kill_spinner_if_running "${spinner_pid}"
     printf '\n%s\n' '==='
     printf '%s\n' "${RED}The following had PR's and can be deleted"
@@ -191,9 +193,9 @@ clean_pr_merged_branches() {
       array_join '\n- ' "${toDelete[@]}"
       printf '\n'
     fi
-    if [ -n "$(git remote prune origin -n)" ]; then
+    if [ -n "${pruneable}" ]; then
       printf '%s\n' "- Prune tracking branches"
-      prune_tracking
+      printf '%s\n' "${pruneable}" | grep -E '^\s\*'
     fi
     printf '%s' "${CLEAR_COLOR}"
     if [ ${#dangling[@]} -gt 0 ]; then
@@ -206,11 +208,6 @@ clean_pr_merged_branches() {
   else
     kill_spinner_if_running "${spinner_pid}"
   fi
-}
-
-parse_decision_message_and_rest() {
-  local decision="${1}"
-  printf '%s' "${decision}" | cut -d':' -f3-
 }
 
 DECIDE_DELETE='delete'
@@ -274,8 +271,8 @@ array_join() {
 ask() {
   local question="${1}"
   local apply='n'
-  exec </dev/tty
-  if [ "${ZSH:-}" ]; then
+  local init_interactive
+  if [ "${IS_ZSH:-}" ]; then
     # shellcheck disable=SC2229
     read -r "?${question}" apply
   else
@@ -303,36 +300,75 @@ interactive_delete() {
   if [ "${auto_apply}" = "true" ]; then
     apply='y'
   else
+    if [[ "${-}" =~ 'i' ]]; then
+      init_interactive=true
+    else
+      init_interactive=false
+      exec </dev/tty
+    fi
     apply="$(ask 'apply changes? (y/n/p/i) ')"
+    if [ "${init_interactive}" = "false" ]; then
+      exec <&-
+    fi
   fi
   if [ "${apply}" = "y" ]; then
     if [ "${#toDelete[@]}" -gt 0 ]; then
       delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
     fi
-    if [ -z "$(git remote prune origin -n)" ]; then
-      prune_tracking
+    local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+    # shellcheck disable=SC2086
+    local -r pruneable="$(git remote prune -n ${all_remotes})"
+    if [ -n "${pruneable}" ]; then
+      local pruneable_remotes=()
+      for remote_name in ${all_remotes}; do
+        if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
+          pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
+        fi
+      done
+      prune_tracking "${pruneable_remotes[@]}"
     fi
   elif [ "${apply}" = "i" ]; then
     delete_branches "$(echo "${toDelete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
   elif [ "${apply}" = "p" ]; then
     for branch in "${items[@]}"; do
       local should_delete='n'
+      if [[ "${-}" =~ 'i' ]]; then
+        init_interactive=true
+      else
+        init_interactive=false
+        exec </dev/tty
+      fi
       should_delete="$(ask "${branch}:delete? (y/n)")"
+      if [ "${init_interactive}" = "false" ]; then
+        exec <&-
+      fi
       if [ "${should_delete}" = "y" ]; then
         delete_branches "${branch}"
       else
         printverbose "${verbose}" "not deleting...${branch}"
       fi
     done
-    interactive_prune_tracking "${verbose}"
+    local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+    # shellcheck disable=SC2086
+    local -r pruneable="$(git remote prune -n ${all_remotes})"
+    if [ -n "${pruneable}" ]; then
+      local pruneable_remotes=()
+      for remote_name in ${all_remotes}; do
+        if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
+          pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
+        fi
+      done
+      interactive_prune_tracking "${verbose}" "${pruneable_remotes[@]}"
+    fi
   fi
 }
 
 interactive_prune_tracking() {
   local -r verbose="${1}"
+  local -r remotes_to_prune="${2}"
   local -r prune="$(ask "prune tracking? (y/n)")"
   if [ "${prune}" = 'y' ]; then
-    prune_tracking
+    prune_tracking "${remotes_to_prune}"
   else
     if [ "${verbose}" = "true" ]; then
       printf '%s\n' "not deleting...${branch}"
@@ -341,7 +377,8 @@ interactive_prune_tracking() {
 }
 
 prune_tracking() {
-  git remote prune "$(git remote -v | cut -d$'\t' -f1 | uniq)" | grep -E '^\s\*'
+  local -r remotes_to_prune="${1}"
+  git remote prune "${remotes_to_prune}"
 }
 
 delete_branches() {
