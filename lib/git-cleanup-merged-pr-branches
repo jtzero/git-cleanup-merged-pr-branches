@@ -153,19 +153,7 @@ clean_pr_merged_branches() {
       platform_loaded="${platform}"
     fi
 
-    decisions="$(
-      #shellcheck source=/dev/null
-      . "${platform_path}"
-
-      for remote_branch_and_local_branch in $remote_group; do
-        local remote_branch='' local_branch='' platform_query_result='' platform='' decision='' decision_command=''
-        remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
-        local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
-
-        decided="$(decide "${local_branch}" "${remote_branch}" "${spinner_pid}" "${verbose}")"
-        printf '%s\n' "$(printf '%s' "${decided}" | base64 -w 0)"
-      done
-    )"
+    decisions="$(decide_remote_group "${platform_path}" "${remote_group}" "${spinner_pid}" "${verbose}")"
     for base64_decision in ${decisions}; do
       local decision='' local_branch=''
       decision="$(base64 -d <<<"${base64_decision}")"
@@ -214,6 +202,24 @@ DECIDE_DELETE='delete'
 DECIDE_WARNING_DELETED_ON_REMOTE='warning_deleted_on_remote'
 DECIDE_SKIP='skip'
 
+decide_remote_group() {
+  local platform_path="${1}"
+  local remote_group="${2}"
+  local spinner_pid="${3}"
+  local verbose="${4}"
+  #shellcheck source=/dev/null
+  . "${platform_path}"
+
+  for remote_branch_and_local_branch in $remote_group; do
+    local remote_branch='' local_branch='' decided=''
+    remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
+    local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
+
+    decided="$(decide "${local_branch}" "${remote_branch}" "${spinner_pid}" "${verbose}")"
+    printf '%s\n' "$(printf '%s' "${decided}" | base64 -w 0)"
+  done
+}
+
 decide() {
   local -r local_branch="${1}"
   local -r remote_branch="${2}"
@@ -235,12 +241,12 @@ decide() {
       local only_completed=""
       only_completed="$(get_only_completed "${states}")"
       if [ "${only_completed}" = "true" ]; then
-        printf '%s:%s:%s:%s' "${DECIDE_DELETE}" "${local_branch}" "${local_branch}->${remote_branch} had a pr that completed" "${states}"
+        decide_print "${DECIDE_DELETE}" "${local_branch}" "${local_branch}->${remote_branch} had a pr that completed" "${states}"
       else
-        printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
+        decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
       fi
     else
-      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has open pr's, not deleting" "${states}"
+      decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has open pr's, not deleting" "${states}"
     fi
   else
     local deleted_remotely="false"
@@ -249,11 +255,19 @@ decide() {
       deleted_remotely="$(branch_was_deleted_remotely "${remote_branch}")"
     fi
     if [ "${deleted_remotely}" = "true" ]; then
-      printf '%s:%s::%s:%s' "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, but was deleted on remote" "${states}"
+      decide_print "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, but was deleted on remote" "${states}"
     else
-      printf '%s:%s:%s:%s' "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, not deleting" "${states}"
+      decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, not deleting" "${states}"
     fi
   fi
+}
+
+decide_print() {
+  local action="${1}"
+  local local_branch="${2}"
+  local message="${3}"
+  local states="${4}"
+  printf '%s:%s:%s:%s' "${action}" "${local_branch}" "${message}" "${states}"
 }
 
 array_join() {
@@ -325,7 +339,7 @@ interactive_delete() {
           pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
         fi
       done
-      prune_tracking "${pruneable_remotes[@]}"
+      prune_tracking "${pruneable_remotes[*]}"
     fi
   elif [ "${apply}" = "i" ]; then
     delete_branches "$(echo "${toDelete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
@@ -358,7 +372,7 @@ interactive_delete() {
           pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
         fi
       done
-      interactive_prune_tracking "${verbose}" "${pruneable_remotes[@]}"
+      interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}"
     fi
   fi
 }

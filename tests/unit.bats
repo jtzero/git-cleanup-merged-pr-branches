@@ -86,3 +86,8 @@ EOF
 )"
   assert_output "${expected}"
 }
+
+@test "decide_print" {
+  output="$(decide_print 'delete' 'local-branch' 'idk' '[{\"state\": \"merged\", \"id\": 11111 }]')"
+  assert_output 'delete:local-branch:idk:[{\"state\": \"merged\", \"id\": 11111 }]'
+}
