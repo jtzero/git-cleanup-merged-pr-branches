@@ -174,27 +174,41 @@ clean_pr_merged_branches() {
 
   if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ]; then
     kill_spinner_if_running "${spinner_pid}"
-    printf '\n%s\n' '==='
-    printf '%s\n' "${RED}The following had PR's and can be deleted"
-    if [ ${#toDelete[@]} -gt 0 ]; then
-      printf '%s' "- "
-      array_join '\n- ' "${toDelete[@]}"
-      printf '\n'
-    fi
-    if [ -n "${pruneable}" ]; then
-      printf '%s\n' "- Prune tracking branches"
-      printf '%s\n' "${pruneable}" | grep -E '^\s\*'
-    fi
-    printf '%s' "${CLEAR_COLOR}"
-    if [ ${#dangling[@]} -gt 0 ]; then
-      printf '%s\n' "${YELLOW}The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
-      printf '%s' '~ '
-      array_join '\n~ ' "${dangling[@]}"
-      printf '%s\n' "${CLEAR_COLOR}"
-    fi
+    print_menu "${pruneable}" "${toDelete[@]}" "|" "${dangling[@]}"
     interactive_delete "${auto_apply}" "${toDelete[@]}" "|" "${dangling[@]}"
   else
     kill_spinner_if_running "${spinner_pid}"
+  fi
+}
+
+print_menu() {
+  local -r pruneable="${1}"
+  local items=("${@:2}")
+  local index=0
+  for item in "${items[@]}"; do
+    if [ "${item}" == "|" ]; then
+      break
+    fi
+    ((++index))
+  done
+
+  printf '\n%s\n' '==='
+  printf '%s\n' "${RED}The following had PR's and can be deleted"
+  if [ ${#toDelete[@]} -gt 0 ]; then
+    printf '%s' "- "
+    array_join '\n- ' "${toDelete[@]}"
+    printf '\n'
+  fi
+  if [ -n "${pruneable}" ]; then
+    printf '%s\n' "- Prune tracking branches"
+    printf '%s\n' "${pruneable}" | grep -E '^\s\*'
+  fi
+  printf '%s' "${CLEAR_COLOR}"
+  if [ ${#dangling[@]} -gt 0 ]; then
+    printf '%s\n' "${YELLOW}The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
+    printf '%s' '~ '
+    array_join '\n~ ' "${dangling[@]}"
+    printf '%s\n' "${CLEAR_COLOR}"
   fi
 }
 
@@ -231,42 +245,56 @@ decide() {
     pre_init_hook "${spinner_pid}"
   fi
 
-  states="$(get_states "${remote_branch}")"
+  local -r states="$(get_states "${remote_branch}")"
 
-  had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
+  local -r had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
   if [ "${had_a_pr}" = "true" ]; then
-    local any_open_statuses=""
-    any_open_statuses="$(get_any_open_states "${states}")"
-    if [ "${any_open_statuses}" = "false" ]; then
-      local only_completed=""
-      only_completed="$(get_only_completed "${states}")"
-      if [ "${only_completed}" = "true" ]; then
-        decide_print "${DECIDE_DELETE}" "${local_branch}" "${local_branch}->${remote_branch} had a pr that completed" "${states}"
-      else
-        decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
-      fi
+    get_decision_on_branch_with_pr "${local_branch}" "${remote_branch}" "${states}"
+  else
+    get_decision_on_branch_without_pr "${local_branch}" "${remote_branch}" "${states}"
+  fi
+}
+
+get_decision_on_branch_without_pr() {
+  local local_branch="${1}"
+  local remote_branch="${2}"
+
+  local deleted_remotely="false"
+  local -r remotely_deleted_type_result="$(type branch_was_deleted_remotely 2>&1)"
+  if ! (printf '%s' "${remotely_deleted_type_result}" | grep -sq 'not found'); then
+    deleted_remotely="$(branch_was_deleted_remotely "${remote_branch}")"
+  fi
+  if [ "${deleted_remotely}" = "true" ]; then
+    decide_print "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, but was deleted on remote" "${states}"
+  else
+    decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, not deleting" "${states}"
+  fi
+}
+
+get_decision_on_branch_with_pr() {
+  local -r local_branch="${1}"
+  local -r remote_branch="${2}"
+  local -r states="${3}"
+
+  local -r any_open_statuses="$(get_any_open_states "${states}")"
+  if [ "${any_open_statuses}" = "false" ]; then
+    local only_completed=""
+    only_completed="$(get_only_completed "${states}")"
+    if [ "${only_completed}" = "true" ]; then
+      decide_print "${DECIDE_DELETE}" "${local_branch}" "${local_branch}->${remote_branch} had a pr that completed" "${states}"
     else
-      decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has open pr's, not deleting" "${states}"
+      decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has a pr that is not marked as ${COMPLETED_STATES}, not deleting" "${states}"
     fi
   else
-    local deleted_remotely="false"
-    local -r remotely_deleted_type_result="$(type branch_was_deleted_remotely 2>&1)"
-    if ! (printf '%s' "${remotely_deleted_type_result}" | grep -sq 'not found'); then
-      deleted_remotely="$(branch_was_deleted_remotely "${remote_branch}")"
-    fi
-    if [ "${deleted_remotely}" = "true" ]; then
-      decide_print "${DECIDE_WARNING_DELETED_ON_REMOTE}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, but was deleted on remote" "${states}"
-    else
-      decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} never had a pr, not deleting" "${states}"
-    fi
+    decide_print "${DECIDE_SKIP}" "${local_branch}" "${local_branch}->${remote_branch} has open pr's, not deleting" "${states}"
   fi
 }
 
 decide_print() {
-  local action="${1}"
-  local local_branch="${2}"
-  local message="${3}"
-  local states="${4}"
+  local -r action="${1}"
+  local -r local_branch="${2}"
+  local -r message="${3}"
+  local -r states="${4}"
   printf '%s:%s:%s:%s' "${action}" "${local_branch}" "${message}" "${states}"
 }
 
