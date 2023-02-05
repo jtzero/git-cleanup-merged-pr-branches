@@ -91,3 +91,17 @@ EOF
   output="$(decide_print 'delete' 'local-branch' 'idk' '[{\"state\": \"merged\", \"id\": 11111 }]')"
   assert_output 'delete:local-branch:idk:[{\"state\": \"merged\", \"id\": 11111 }]'
 }
+
+@test "ask" {
+  output="$(ask 'question' false <<<$(printf $'y\n'))"
+  assert_output "y"
+}
+
+@test "delete_branches" {
+  git() {
+    printf '%s' 'Deleted branch integration-test (was fe0bfc8)'
+  }
+  output="$(delete_branches 'ted')"
+  expected="Deleted branch integration-test \(was .+\)"
+  assert_output --regexp "${expected}"
+}
