@@ -176,7 +176,7 @@ clean_pr_merged_branches() {
   if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ]; then
     kill_spinner_if_running "${spinner_pid}"
     print_menu "${pruneable}" "${toDelete[@]}" "|" "${dangling[@]}"
-    interactive_delete "${auto_apply}" "${toDelete[@]}" "|" "${dangling[@]}"
+    handle_plan "${auto_apply}" "${force_interactive}" "${toDelete[@]}" "|" "${dangling[@]}"
   else
     kill_spinner_if_running "${spinner_pid}"
   fi
@@ -313,21 +313,40 @@ array_join() {
 }
 
 ask() {
-  local question="${1}"
+  local -r question="${1}"
+  local -r force_interactive="${2:-true}"
   local apply='n'
   local init_interactive
+  local tty_value="$(tty)"
+
+  if [[ "${-}" =~ 'i' ]]; then
+    init_interactive=true
+  else
+    init_interactive=false
+    if [[ "${force_interactive}" = "true" ]]; then
+      exec </dev/tty
+    fi
+  fi
   if [ "${IS_ZSH:-}" ]; then
     # shellcheck disable=SC2229
     read -r "?${question}" apply
   else
     read -rp "${question}" apply
   fi
+  if [ "${init_interactive}" = "false" ]; then
+    if [ "${tty_value}" = "not a tty" ]; then
+      exec <&-
+    else
+      exec <"${tty_value}"
+    fi
+  fi
   printf "%s" "${apply}"
 }
 
-interactive_delete() {
+handle_plan() {
   local -r auto_apply="${1}"
-  local items=("${@:2}")
+  local -r force_interactive="${2}"
+  local items=("${@:3}")
   local index=0
   for item in "${items[@]}"; do
     if [ "${item}" == "|" ]; then
@@ -344,16 +363,7 @@ interactive_delete() {
   if [ "${auto_apply}" = "true" ]; then
     apply='y'
   else
-    if [[ "${-}" =~ 'i' ]]; then
-      init_interactive=true
-    else
-      init_interactive=false
-      exec </dev/tty
-    fi
-    apply="$(ask 'apply changes? (y/n/p/i) ')"
-    if [ "${init_interactive}" = "false" ]; then
-      exec <&-
-    fi
+    apply="$(ask 'apply changes? (y/n/p/i) ' "${force_interactive}")"
   fi
   if [ "${apply}" = "y" ]; then
     if [ "${#toDelete[@]}" -gt 0 ]; then
@@ -375,17 +385,7 @@ interactive_delete() {
     delete_branches "$(echo "${toDelete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
   elif [ "${apply}" = "p" ]; then
     for branch in "${items[@]}"; do
-      local should_delete='n'
-      if [[ "${-}" =~ 'i' ]]; then
-        init_interactive=true
-      else
-        init_interactive=false
-        exec </dev/tty
-      fi
-      should_delete="$(ask "${branch}:delete? (y/n)")"
-      if [ "${init_interactive}" = "false" ]; then
-        exec <&-
-      fi
+      local -r should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
       if [ "${should_delete}" = "y" ]; then
         delete_branches "${branch}"
       else
@@ -402,7 +402,7 @@ interactive_delete() {
           pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
         fi
       done
-      interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}"
+      interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}" "${force_interactive}"
     fi
   fi
 }
@@ -410,7 +410,8 @@ interactive_delete() {
 interactive_prune_tracking() {
   local -r verbose="${1}"
   local -r remotes_to_prune="${2}"
-  local -r prune="$(ask "prune tracking? (y/n)")"
+  local -r force_interactive="${3:-true}"
+  local -r prune="$(ask "prune tracking? (y/n)" "${force_interactive}")"
   if [ "${prune}" = 'y' ]; then
     prune_tracking "${remotes_to_prune}"
   else
@@ -479,6 +480,7 @@ run() {
   local verbose="${5:-false}"
   local spinner="${6:-true}"
   local interactive_rebase_in_progress=false
+  local -r force_interactive=true
 
   if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
     interactive_rebase_in_progress=true
@@ -488,7 +490,7 @@ run() {
     printverbose "${verbose}" "items excluded via config($(config_file_path)):${config_exclusions}:"
   fi
   if [ "${skip_cleanup_merged_pr_branches}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
-    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}" "${spinner}"
+    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
   else
     printverbose "${verbose}" "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PR_BRANCHES:${skip_cleanup_merged_pr_branches:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
   fi

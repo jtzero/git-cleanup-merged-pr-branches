@@ -74,7 +74,7 @@ URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
 EOF
   }
   local -r remotes_to_prune=('origin' 'upstream')
-  output="$(interactive_prune_tracking true "${remotes_to_prune[*]}" <<<$(printf $'y\n'))"
+  output="$(interactive_prune_tracking true "${remotes_to_prune[*]}" false <<<$(printf $'y\n'))"
   local -r expected="$(cat<<EOF
 Pruning origin
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
