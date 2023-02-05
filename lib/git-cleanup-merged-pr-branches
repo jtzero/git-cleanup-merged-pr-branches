@@ -2,7 +2,8 @@
 #
 # reqs: realpath
 # TODO pass GCMPB_VERBOSE around instead of global
-#set -Eeuo pipefail
+
+set -Eeuo pipefail
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
   GCMPB_DIR="${0:A:h}"
