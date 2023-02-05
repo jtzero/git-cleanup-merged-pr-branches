@@ -415,9 +415,7 @@ interactive_prune_tracking() {
   if [ "${prune}" = 'y' ]; then
     prune_tracking "${remotes_to_prune}"
   else
-    if [ "${verbose}" = "true" ]; then
-      printf '%s\n' "not deleting...${branch}"
-    fi
+    printverbose "${verbose}" "not deleting...${branch}"
   fi
 }
 
