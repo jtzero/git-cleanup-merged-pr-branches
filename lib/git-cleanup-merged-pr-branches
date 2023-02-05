@@ -317,7 +317,7 @@ ask() {
   local -r force_interactive="${2:-true}"
   local apply='n'
   local init_interactive
-  local tty_value="$(tty)"
+  local -r tty_value="$(tty)"
 
   if [[ "${-}" =~ 'i' ]]; then
     init_interactive=true
@@ -366,44 +366,57 @@ handle_plan() {
     apply="$(ask 'apply changes? (y/n/p/i) ' "${force_interactive}")"
   fi
   if [ "${apply}" = "y" ]; then
-    if [ "${#toDelete[@]}" -gt 0 ]; then
-      delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
-    fi
-    local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
-    # shellcheck disable=SC2086
-    local -r pruneable="$(git remote prune -n ${all_remotes})"
-    if [ -n "${pruneable}" ]; then
-      local pruneable_remotes=()
-      for remote_name in ${all_remotes}; do
-        if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
-          pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
-        fi
-      done
-      prune_tracking "${pruneable_remotes[*]}"
-    fi
+    apply_plan "${toDelete[@]}"
   elif [ "${apply}" = "i" ]; then
     delete_branches "$(echo "${toDelete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
   elif [ "${apply}" = "p" ]; then
-    for branch in "${items[@]}"; do
-      local -r should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
-      if [ "${should_delete}" = "y" ]; then
-        delete_branches "${branch}"
-      else
-        printverbose "${verbose}" "not deleting...${branch}"
+    apply_partial "${verbose}" "${force_interactive}" "${items[@]}"
+  fi
+}
+
+apply_plan() {
+  local toDelete=("${@}")
+  if [ "${#toDelete[@]}" -gt 0 ]; then
+    delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
+  fi
+  local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+  # shellcheck disable=SC2086
+  local -r pruneable="$(git remote prune -n ${all_remotes})"
+  if [ -n "${pruneable}" ]; then
+    local pruneable_remotes=()
+    for remote_name in ${all_remotes}; do
+      if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
+        pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
     done
-    local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
-    # shellcheck disable=SC2086
-    local -r pruneable="$(git remote prune -n ${all_remotes})"
-    if [ -n "${pruneable}" ]; then
-      local pruneable_remotes=()
-      for remote_name in ${all_remotes}; do
-        if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
-          pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
-        fi
-      done
-      interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}" "${force_interactive}"
+    prune_tracking "${pruneable_remotes[*]}"
+  fi
+}
+
+apply_partial() {
+  local -r verbose="${1}"
+  local -r force_interactive="${2}"
+  local -r items=("${@:3}")
+
+  for branch in "${items[@]}"; do
+    local -r should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
+    if [ "${should_delete}" = "y" ]; then
+      delete_branches "${branch}"
+    else
+      printverbose "${verbose}" "not deleting...${branch}"
     fi
+  done
+  local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+  # shellcheck disable=SC2086
+  local -r pruneable="$(git remote prune -n ${all_remotes})"
+  if [ -n "${pruneable}" ]; then
+    local pruneable_remotes=()
+    for remote_name in ${all_remotes}; do
+      if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
+        pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
+      fi
+    done
+    interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}" "${force_interactive}"
   fi
 }
 
