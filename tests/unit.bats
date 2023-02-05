@@ -13,15 +13,6 @@ setup() {
   assert_output "a:b:c"
 }
 
-@test "available_platforms" {
-  find() {
-    printf '%s\n%s\n%s\n' 'github.sh' 'azure.sh' 'gitlab.sh'
-  }
-  output="$(available_platforms "/nop")"
-  unset -f find
-  assert_output 'github|azure|gitlab'
-}
-
 @test "query_vcs_platform" {
   git() {
     printf '%s\n%s\n' 'origin	git@gboatbin.com:jtzero/git-cleanup-merged-pr-branches.git (fetch)' 'origin	git@gboatbin.com:jtzero/git-cleanup-merged-pr-branches.git (push)'
@@ -50,14 +41,71 @@ setup() {
   assert_output ''
 }
 
-@test "prune_tracking" {
-  output=""
-  git() {
-    output="${*}"
+@test "printerr_stdout_empty" {
+  output="$(printerr 'test')"
+  assert_output ""
+}
+
+@test "printerr_stderr_value" {
+  output="$(printerr 'test' 2>&1)"
+  assert_output "${output}"
+}
+
+@test "printverbose_stdout_empty" {
+  output="$(printerr 'test')"
+  assert_output ""
+}
+
+@test "printverbose_stderr_value" {
+  output="$(printerr 'test' 2>&1)"
+  assert_output "${output}"
+}
+
+@test "available_platforms" {
+  output="$(available_platforms "${DIR}/fixtures/platforms/")"
+  assert_output "azure|gitlab"
+}
+
+@test "decide_remote_group" {
+  decide() {
+    printf '%s' 'doit'
   }
-  remotes_to_prune=('origin' 'upstream')
-  prune_tracking "${remotes_to_prune[*]}"
-  assert_output 'remote prune origin upstream'
+  output="$(decide_remote_group  "${DIR}/fixtures/platforms/gitlab.sh" "origin" "1111" "true")"
+  assert_output "ZG9pdA=="
+}
+
+@test "decide_print" {
+  output="$(decide_print 'delete' 'local-branch' 'idk' '[{\"state\": \"merged\", \"id\": 11111 }]')"
+  assert_output 'delete:local-branch:idk:[{\"state\": \"merged\", \"id\": 11111 }]'
+}
+
+@test "array_join_gt_one" {
+  ary=(1 2 3 4)
+  output="$(array_join ',' "${ary[@]}")"
+  assert_output "1,2,3,4"
+}
+
+@test "array_join_only_one" {
+  ary=(4)
+  output="$(array_join ',' "${ary[@]}")"
+  assert_output "4"
+}
+
+@test "ask" {
+  output="$(ask 'question' false <<<$(printf $'y\n'))"
+  assert_output "y"
+}
+
+@test "handle_plan" {
+  skip
+}
+
+@test "apply_plan" {
+  skip
+}
+
+@test "apply_partial" {
+  skip
 }
 
 @test "interactive_prune_tracking" {
@@ -87,14 +135,14 @@ EOF
   assert_output "${expected}"
 }
 
-@test "decide_print" {
-  output="$(decide_print 'delete' 'local-branch' 'idk' '[{\"state\": \"merged\", \"id\": 11111 }]')"
-  assert_output 'delete:local-branch:idk:[{\"state\": \"merged\", \"id\": 11111 }]'
-}
-
-@test "ask" {
-  output="$(ask 'question' false <<<$(printf $'y\n'))"
-  assert_output "y"
+@test "prune_tracking" {
+  output=""
+  git() {
+    output="${*}"
+  }
+  remotes_to_prune=('origin' 'upstream')
+  prune_tracking "${remotes_to_prune[*]}"
+  assert_output 'remote prune origin upstream'
 }
 
 @test "delete_branches" {
@@ -104,16 +152,4 @@ EOF
   output="$(delete_branches 'ted')"
   expected="Deleted branch integration-test \(was .+\)"
   assert_output --regexp "${expected}"
-}
-
-@test "array_join_gt_one" {
-  ary=(1 2 3 4)
-  output="$(array_join ',' "${ary[@]}")"
-  assert_output "1,2,3,4"
-}
-
-@test "array_join_only_one" {
-  ary=(4)
-  output="$(array_join ',' "${ary[@]}")"
-  assert_output "4"
 }
