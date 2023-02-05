@@ -303,9 +303,16 @@ decide_print() {
 array_join() {
   local -r delimiter="${1}"
   local array=("${@:2}")
-  if [ ${#array[@]} -gt 1 ]; then
+  local -r size="${#array[@]}"
+  if [ "${size}" -gt 1 ]; then
+    local index=0
     for item in "${array[@]}"; do
-      printf "%s${delimiter}" "${item}"
+      if [ "${index}" = $((size - 1)) ]; then
+        printf '%s' "${item}"
+      else
+        printf "%s${delimiter}" "${item}"
+      fi
+      ((++index))
     done
   else
     printf '%s' "${array[0]}"

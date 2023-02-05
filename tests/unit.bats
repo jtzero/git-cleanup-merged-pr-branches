@@ -105,3 +105,15 @@ EOF
   expected="Deleted branch integration-test \(was .+\)"
   assert_output --regexp "${expected}"
 }
+
+@test "array_join_gt_one" {
+  ary=(1 2 3 4)
+  output="$(array_join ',' "${ary[@]}")"
+  assert_output "1,2,3,4"
+}
+
+@test "array_join_only_one" {
+  ary=(4)
+  output="$(array_join ',' "${ary[@]}")"
+  assert_output "4"
+}
