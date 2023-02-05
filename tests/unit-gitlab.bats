@@ -44,7 +44,7 @@ EOF
 )"
   output="$(get_decision_on_branch_without_pr 'local-branch' 'remote-branch' "${json}")"
   local -r expected="$(cat<<'EOF'
-skip:local-branch:local-branch->remote-branch never had a pr, not deleting:
+skip:local-branch:local-branch->remote-branch never had a pr, not deleting:[]
 EOF
 )"
    assert_output "${expected}"
@@ -60,7 +60,7 @@ EOF
 )"
   output="$(get_decision_on_branch_without_pr 'local-branch' 'remote-branch' "${json}")"
   local -r expected="$(cat<<'EOF'
-warning_deleted_on_remote:local-branch:local-branch->remote-branch never had a pr, but was deleted on remote:
+warning_deleted_on_remote:local-branch:local-branch->remote-branch never had a pr, but was deleted on remote:[]
 EOF
 )"
    assert_output "${expected}"

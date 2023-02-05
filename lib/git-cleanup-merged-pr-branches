@@ -259,6 +259,7 @@ decide() {
 get_decision_on_branch_without_pr() {
   local local_branch="${1}"
   local remote_branch="${2}"
+  local -r states="${3}"
 
   local deleted_remotely="false"
   local -r remotely_deleted_type_result="$(type branch_was_deleted_remotely 2>&1)"
