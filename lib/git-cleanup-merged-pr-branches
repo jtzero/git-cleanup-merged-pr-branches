@@ -194,11 +194,13 @@ print_menu() {
   done
 
   printf '\n%s\n' '==='
-  printf '%s\n' "${RED}The following had PR's and can be deleted"
   if [ ${#toDelete[@]} -gt 0 ]; then
+    printf '%s\n' "${RED}The following had PR's and can be deleted"
     printf '%s' "- "
     array_join '\n- ' "${toDelete[@]}"
     printf '\n'
+  else
+    printf '%s\n' "${RED}Did not find any branches with already merged/closed PRs"
   fi
   if [ -n "${pruneable}" ]; then
     printf '%s\n' "- Prune tracking branches"
