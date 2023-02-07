@@ -56,21 +56,21 @@ smoke-test-gitlab:
   stage: test
   image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
   variables:
-    GCMPB_GL_FILE_TOKEN: /tmp/GCMPB_GL_TOKEN
+    GCMPB_GL_FILE_TOKEN: "/tmp/GCMPB_GL_TOKEN"
     VCS: gitlab
   script:
     - echo "${GCMPB_GL_API_TOKEN}" > "${GCMPB_GL_FILE_TOKEN}"
-    - ./tests/ci-bootstrap.sh
+    - "./tests/ci-bootstrap.sh"
 
 smoke-test-github:
   stage: test
   image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
   variables:
-    GCMPB_GH_FILE_TOKEN: /tmp/GCMPB_GH_TOKEN
+    GCMPB_GH_FILE_TOKEN: "/tmp/GCMPB_GH_TOKEN"
     VCS: github
   script:
     - echo "${GCMPB_GH_API_TOKEN}" > "${GCMPB_GH_FILE_TOKEN}"
-    - ./tests/ci-bootstrap.sh
+    - "./tests/ci-bootstrap.sh"
 
 smoke-test-azure:
   stage: test
@@ -78,13 +78,13 @@ smoke-test-azure:
   variables:
     VCS: azure
   script:
-    - ./tests/ci-bootstrap.sh
+    - "./tests/ci-bootstrap.sh"
 
 prevent-lightweight-tags:
   stage: test
   image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
   script:
-    - ./libexec/no-lightweight-tags
+    - "./libexec/no-lightweight-tags"
 
 lint-test:
   stage: test
@@ -108,11 +108,7 @@ clone-test:
   variables:
     GIT_STRATEGY: none
   script:
-    - git clone "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git" "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable
-        && mkdir "${HOME}/.git-hooks"
-        && git config --global core.hooksPath "${HOME}/.git-hooks"
-        && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
-
+    - git clone "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git" "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable && mkdir "${HOME}/.git-hooks" && git config --global core.hooksPath "${HOME}/.git-hooks" && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
 cleanup:
   stage: cleanup
   only:
@@ -123,4 +119,7 @@ cleanup:
     GCMPB_GH_FILE_TOKEN: /tmp/GCMPB_GH_TOKEN
     GCMPB_GL_FILE_TOKEN: /tmp/GCMPB_GL_TOKEN
   script:
-    - ./libexec/ci-cleanup-mirrors
+  - "./libexec/ci-cleanup-mirrors"
+
+include:
+  - template: Security/Secret-Detection.gitlab-ci.yml
