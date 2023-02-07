@@ -70,7 +70,7 @@ EOF
 }
 
 set_up_azure() {
-  local home_dir="{1}"
+  local home_dir="${1}"
   curl -sL https://aka.ms/InstallAzureCLIDeb | bash
   az extension add --name azure-devops
   ssh-keyscan -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
