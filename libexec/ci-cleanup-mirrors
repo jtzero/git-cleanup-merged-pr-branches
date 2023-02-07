@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  LIBEXEC_DIR="${0:A:h}"
+else
+  LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+fi
+
+set_up_github() {
+  local home_dir="${1}"
+  local deploy_key_path="${2}"
+  mkdir -p "${home_dir}/.ssh"
+  ssh-keyscan -H github.com >>"${home_dir}/.ssh/known_hosts"
+  cp "${deploy_key_path}" "${home_dir}/.ssh/github"
+  chmod 400 "${home_dir}/.ssh/github"
+  touch "${home_dir}/.ssh/config"
+  cat <<-'EOF' >>"${home_dir}/.ssh/config"
+  Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/github
+EOF
+  git remote add github "git@github.com:jtzero/git-cleanup-merged-pr-branches.git"
+  type -p curl >/dev/null || apt install curl -y
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &&
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg &&
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list >/dev/null &&
+    apt update && apt install gh -y
+}
+
+set_up_azure() {
+  local home_dir="{1}"
+  curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  az extension add --name azure-devops
+  ssh-keyscan -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
+  ssh-keyscan -t rsa -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
+  git remote add azure "https://jtzero:${AZURE_DEVOPS_EXT_PAT}@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
+}
+
+
+set_up_github "${HOME}" "${GITHUB_DEPLOY_KEY}"
+set_up_azure "${HOME}"
+
+git fetch --all
+
+branches_to_delete="$(git branch -a | grep '/' | grep -v 'integration-test' | grep -v 'main' | grep -v 'origin')"
+for branch in ${branches_to_delete}; do
+  remote="$(printf '%s' "${branch}" | cut -d'/' -f2)"
+  remote_branch="$(printf '%s' "${branch}" | cut -d'/' -f3)"
+  git push '%s' "${remote}" ":${remote_branch}"
+done

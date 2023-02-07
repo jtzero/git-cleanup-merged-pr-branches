@@ -22,6 +22,7 @@ cache:
 
 stages:          # List of stages for jobs, and their order of execution
   - test
+  - cleanup
 
 bats-tests:
   stage: test
@@ -85,3 +86,14 @@ clone-test:
         && mkdir "${HOME}/.git-hooks"
         && git config --global core.hooksPath "${HOME}/.git-hooks"
         && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
+
+cleanup:
+  only:
+    refs:
+      - main
+  variables:
+    GCMPB_GH_FILE_TOKEN: /tmp/GCMPB_GH_TOKEN
+    GCMPB_GL_FILE_TOKEN: /tmp/GCMPB_GL_TOKEN
+  stage: cleanup
+  script:
+    - ./libexec/ci-cleanup-mirrors
