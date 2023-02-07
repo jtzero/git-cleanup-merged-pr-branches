@@ -32,7 +32,7 @@ printverbose() {
 }
 
 config_file_path() {
-  printf '%s' "$(git rev-parse --show-toplevel)/.git/info/cleanup"
+  printf '%s' "$(git rev-parse --git-dir)/info/cleanup"
 }
 
 config() {

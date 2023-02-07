@@ -7,7 +7,7 @@ GCMPB_GL_FILE_TOKEN="${GCMPB_GL_FILE_TOKEN:-''}"
 
 get_cache_config() {
   local -r remote="${1}"
-  local -r config_file="$(git rev-parse --show-toplevel)/.git/info/cleanup-az-cache-${remote}"
+  local -r config_file="$(git rev-parse git rev-parse --git-dir)/info/cleanup-az-cache-${remote}"
   touch "${config_file}" >/dev/null
   #shellcheck source=/dev/null
   . "${config_file}"

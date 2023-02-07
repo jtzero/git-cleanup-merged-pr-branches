@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 
 setup() {
-  load 'test_helper/bats-support/load' # this is required by bats-assert!
-  load 'test_helper/bats-assert/load'
+  bats_load_library 'test_helper/bats-support' # this is required by bats-assert!
+  bats_load_library 'test_helper/bats-assert'
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd)"
-  ROOT_DIR="$(dirname "${DIR}")"
+  ROOT_DIR="$(dirname "${BATS_TEST_LIB}")"
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
 }
 
@@ -24,12 +24,9 @@ setup() {
 }
 
 @test "config_file_path" {
-  git() {
-    printf '%s\n' '/nop'
-  }
   output="$(config_file_path)"
   unset -f git
-  assert_output --regexp '/nop/.+/cleanup'
+  assert_output --regexp '.git/.+?/cleanup'
 }
 
 @test "config" {
