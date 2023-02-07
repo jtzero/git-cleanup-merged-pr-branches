@@ -39,7 +39,7 @@ standardize_git_repo() {
   # change existing remote to prevent unexpected side-effects
   git remote rename origin ci
 
-  mkdir -p tmp
+  mkdir -p "${cwd}/tmp"
 }
 
 set_up_gitlab() {
@@ -102,11 +102,13 @@ printf '\n=======SETUP\n'
 add_gh_apt_source
 apt-get update -y && apt-get install -y gettext tree gcc unzip make autoconf ssh libz-dev xz-utils
 
-set_up_asdf "${PWD}"
+ROOT_DIR="${PWD}"
 
-standardize_git_repo "${PWD}"
+set_up_asdf "${ROOT_DIR}"
 
-exec 7>tmp/set-output.log
+standardize_git_repo "${ROOT_DIR}"
+
+exec 7>"${ROOT_DIR}/tmp/set-output.log"
 export BASH_XTRACEFD=7
 set -x
 
@@ -126,8 +128,8 @@ fi
 git remote -v
 git fetch --all
 
-set_up_hook "${PWD}"
-prepare_testing_branch "integration-test" "${PWD}"
+set_up_hook "${ROOT_DIR}"
+prepare_testing_branch "integration-test" "${ROOT_DIR}"
 
 printf '\n=======START\n'
 GCMPB_AUTO_APPLY=true GCMPB_DEBUG=true git checkout - 2>&1 | tee /tmp/result || true
