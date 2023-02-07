@@ -48,5 +48,5 @@ branches_to_delete="$(git branch -a | grep '/' | grep -v 'integration-test' | gr
 for branch in ${branches_to_delete}; do
   remote="$(printf '%s' "${branch}" | cut -d'/' -f2)"
   remote_branch="$(printf '%s' "${branch}" | cut -d'/' -f3)"
-  git push '%s' "${remote}" ":${remote_branch}"
+  git push "${remote}" ":${remote_branch}"
 done
