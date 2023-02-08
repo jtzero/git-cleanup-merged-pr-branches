@@ -492,13 +492,17 @@ help() {
 EOS
 }
 
+CLONE_SHA='0000000000000000000000000000000000000000'
+
 run() {
-  local branch_or_files="${1}"
-  local config_exclusions="${2}"
-  local auto_apply="${3:-false}"
-  local skip_cleanup_merged_pr_branches="${4:-false}"
-  local verbose="${5:-false}"
-  local spinner="${6:-true}"
+  local previous_sha="${1}"
+  local next_sha="${2}"
+  local branch_or_files="${3}"
+  local config_exclusions="${4}"
+  local auto_apply="${5:-false}"
+  local skip_cleanup_merged_pr_branches="${6:-false}"
+  local verbose="${7:-false}"
+  local spinner="${8:-true}"
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
@@ -509,7 +513,7 @@ run() {
   if [ "${config_exclusions}" != "" ]; then
     printverbose "${verbose}" "items excluded via config($(config_file_path)):${config_exclusions}:"
   fi
-  if [ "${skip_cleanup_merged_pr_branches}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ]; then
+  if [ "${skip_cleanup_merged_pr_branches}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ] && [ "${previous_sha}" != "${CLONE_SHA}" ]; then
     clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
   else
     printverbose "${verbose}" "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PR_BRANCHES:${skip_cleanup_merged_pr_branches:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
