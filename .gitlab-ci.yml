@@ -16,6 +16,9 @@
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
+default:
+  image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
+
 workflow:
   rules:
     - if: $CI_COMMIT_TAG
@@ -33,7 +36,6 @@ stages:          # List of stages for jobs, and their order of execution
 bats-tests:
   stage: test
   script:
-    - apt-get update -y && apt-get upgrade -y gettext
     - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
     - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
     - . "${PWD}/.asdf/asdf.sh"
@@ -74,7 +76,6 @@ prevent-lightweight-tags:
 lint-test:
   stage: test
   script:
-    - apt-get update -y && apt-get upgrade -y gettext
     - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
     - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
     - . "${PWD}/.asdf/asdf.sh"

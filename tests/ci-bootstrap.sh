@@ -2,11 +2,6 @@
 
 printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 
-add_gh_apt_source() {
-  apt-get update -y && apt-get install -y curl gpg
-  curl -q 'https://proget.makedeb.org/debian-feeds/prebuilt-mpr.pub' | gpg --dearmor | tee /usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg 1>/dev/null
-  echo "deb [signed-by=/usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg] https://proget.makedeb.org prebuilt-mpr bullseye" | tee /etc/apt/sources.list.d/prebuilt-mpr.list
-}
 
 set_up_asdf() {
   local cwd="${1}"
@@ -44,7 +39,6 @@ standardize_git_repo() {
 
 set_up_gitlab() {
   git remote add origin "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git"
-  apt-get install -y glab
 }
 
 set_up_github() {
@@ -62,11 +56,6 @@ set_up_github() {
     IdentityFile ~/.ssh/github
 EOF
   git remote add origin "git@github.com:jtzero/git-cleanup-merged-pr-branches.git"
-  type -p curl >/dev/null || apt install curl -y
-  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &&
-    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg &&
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list >/dev/null &&
-    apt update && apt install gh -y
 }
 
 set_up_azure() {
@@ -99,8 +88,6 @@ prepare_testing_branch() {
 }
 
 printf '\n=======SETUP\n'
-add_gh_apt_source
-apt-get update -y && apt-get install -y gettext tree gcc unzip make autoconf ssh libz-dev xz-utils
 
 ROOT_DIR="${PWD}"
 
@@ -132,6 +119,7 @@ set_up_hook "${ROOT_DIR}"
 prepare_testing_branch "integration-test" "${ROOT_DIR}"
 
 printf '\n=======START\n'
+printf 'currently on:\n%s' "$(git branch -vv)"
 GCMPB_AUTO_APPLY=true GCMPB_DEBUG=true git checkout - 2>&1 | tee /tmp/result || true
 set +x
 result="$(</tmp/result)"

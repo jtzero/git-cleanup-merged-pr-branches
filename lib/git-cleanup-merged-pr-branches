@@ -53,10 +53,16 @@ get_branches() {
   local config_exclusions="${1:-}"
   local -r current_branch="$(git branch --show-current)"
   local -r current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>&1)"
+  local -r get_current_branch_result="$?"
   if [[ "${current_remote_branch_parse}" == "fatal: no upstream configured for branch"* ]]; then
-    local current_branch_with_remote=""
+    local current_branch_with_remote=":${current_branch}"
   else
-    local current_branch_with_remote="${current_remote_branch_parse}:${current_branch}"
+    if [ "${get_current_branch_result}" = '0' ]; then
+      local current_branch_with_remote="${current_remote_branch_parse}:${current_branch}"
+    else
+      printerr "${current_remote_branch_parse}"
+      exit 1
+    fi
   fi
   local -r default_remote="$(git remote | head -n1)"
   local -r default_branch="$(git ls-remote --symref "${default_remote}" HEAD | grep 'ref' | cut -d'/' -f3 | cut -d$'\t' -f1)"
@@ -364,7 +370,7 @@ handle_plan() {
     ((++index))
   done
 
-  local -r toDelete=("${items[@]:0:$index}")
+  local -r plan_to_delete=("${items[@]:0:$index}")
   local -r dangling=("${items[@]:(($index + 1))}")
 
   local apply='n'
@@ -375,18 +381,18 @@ handle_plan() {
     apply="$(ask 'apply changes? (y/n/p/i) ' "${force_interactive}")"
   fi
   if [ "${apply}" = "y" ]; then
-    apply_plan "${toDelete[@]}"
+    apply_plan "${plan_to_delete[@]}"
   elif [ "${apply}" = "i" ]; then
-    delete_branches "$(echo "${toDelete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
+    delete_branches "$(echo "${plan_to_delete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
   elif [ "${apply}" = "p" ]; then
     apply_partial "${verbose}" "${force_interactive}" "${items[@]}"
   fi
 }
 
 apply_plan() {
-  local toDelete=("${@}")
-  if [ "${#toDelete[@]}" -gt 0 ]; then
-    delete_branches "$(echo "${toDelete[@]}" | tr "\n" " " | tr -s " ")"
+  local to_delete=("${@}")
+  if [ "${#to_delete[@]}" -gt 0 ]; then
+    delete_branches "$(echo "${to_delete[@]}" | tr "\n" " " | tr -s " ")"
   fi
   local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
   # shellcheck disable=SC2086
@@ -447,9 +453,9 @@ prune_tracking() {
 }
 
 delete_branches() {
-  local toDelete=("$@")
+  local -r branches=("$@")
   # shellcheck disable=SC2068
-  git branch -D ${toDelete[@]}
+  git branch -D ${branches[@]}
 }
 
 interactive_help() {

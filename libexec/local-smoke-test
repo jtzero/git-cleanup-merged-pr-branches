@@ -9,17 +9,24 @@ else
   LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 fi
 
-TMP_DIR="$(dirname "${LIBEXEC_DIR}")/tmp"
+ROOT_DIR="$(dirname "${LIBEXEC_DIR}")"
+
+TMP_DIR="${ROOT_DIR}/tmp"
+
+VCS="${1:-gitlab}"
+
+docker image build -t gcmpb-build "${ROOT_DIR}/tests/"
 
 docker volume create gcmpb-asdf
 
 docker run -ti \
-  --env VCS=github \
+  --env VCS="${VCS}" \
+  --env GCMPB_GL_FILE_TOKEN="/root/git-cleanup-merged-pr-branches/tmp/GCMPB_GL_FILE_TOKEN" \
   --env GCMPB_GH_FILE_TOKEN="/root/git-cleanup-merged-pr-branches/tmp/GCMPB_GH_FILE_TOKEN" \
   --env GITHUB_DEPLOY_KEY="/root/git-cleanup-merged-pr-branches/tmp/GITHUB_DEPLOY_KEY" \
   --env AZURE_DEVOPS_EXT_PAT="$(cat "${TMP_DIR}/AZURE_DEVOPS_EXT_PAT")" \
   --mount source=gcmpb-asdf,target=/root/.asdf \
-  -v "$(dirname "${LIBEXEC_DIR}")":/root/git-cleanup-merged-pr-branches \
+  -v "${ROOT_DIR}":/root/git-cleanup-merged-pr-branches \
   -w /root/git-cleanup-merged-pr-branches \
-  ruby:2.5 \
+  gcmpb-build \
   /root/git-cleanup-merged-pr-branches/tests/local-docker-bootstrap.sh
