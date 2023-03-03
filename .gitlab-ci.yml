@@ -73,6 +73,7 @@ smoke-test-azure:
 
 prevent-lightweight-tags:
   stage: test
+  cache: []
   script:
     - ./libexec/no-lightweight-tags
 
