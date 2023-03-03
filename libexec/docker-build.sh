@@ -13,11 +13,23 @@ ROOT_DIR="$(dirname "${LIBEXEC_DIR}")"
 
 EPOCH="$(date +%s)"
 
+EXTRA_ARGS=""
+
+if [ -z "${CI_REGISTRY_USER:-}" ]; then
+  docker login registry.gitlab.com
+else
+  docker() {
+    podman "$@"
+  }
+  export -f docker
+  EXTRA_ARGS="--format docker "
+  docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+fi
+
 EXISTING_SHA="$(docker images --no-trunc --quiet gcmpb-build | cut -d ':' -f2-)"
 
-docker login registry.gitlab.com
 set -x
-docker image build -t gcmpb-build "${ROOT_DIR}/tests/"
+docker image build ${EXTRA_ARGS}-t gcmpb-build -f "${ROOT_DIR}/tests/Dockerfile" .
 NEW_SHA="$(docker images --no-trunc --quiet gcmpb-build | cut -d ':' -f2-)"
 if [ "${EXISTING_SHA}" = "${NEW_SHA}" ]; then
   LAST_EPOCH="$(docker inspect --format='{{json .RepoTags}}' gcmpb-build:latest | jq --raw-output  '.[]' | cut -d ':' -f2 | sort | head -n 1)"

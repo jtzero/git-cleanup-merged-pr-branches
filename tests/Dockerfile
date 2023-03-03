@@ -1,4 +1,10 @@
-FROM ruby:2.5
+FROM docker.io/ruby:2.5
+
+SHELL ["/bin/bash", "-c"]
+
+WORKDIR "/root"
+
+COPY ./.tool-versions "./.tool-versions"
 
 RUN apt-get update -y && apt-get install -y gettext tree gcc unzip make autoconf ssh libz-dev xz-utils
 
@@ -14,4 +20,9 @@ RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
       az extension add --name azure-devops
 
 
-RUN apt update -y && apt install gh glab -y && apt-get upgrade -y
+RUN apt update -y && apt install -y gh glab && apt-get upgrade -y
+RUN git clone https://github.com/asdf-vm/asdf.git "${HOME}/.asdf" --branch v0.10.2 || true
+
+RUN . "${HOME}/.asdf/asdf.sh" && cut -d' ' -f1 .tool-versions | grep -v "^#" | \
+      xargs -I{} asdf plugin add {} && cut -d' ' -f1 .tool-versions | grep -v "^#" | xargs -I{} asdf install {} && asdf reshim
+RUN echo '. "${HOME}/.asdf/asdf.sh"' >> "${HOME}/.bashrc"
