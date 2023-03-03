@@ -23,6 +23,9 @@ workflow:
   rules:
     - if: $CI_COMMIT_TAG
       when: never
+        # don't create a pipeline if its a commit pipeline, on a branch and that branch has open merge requests (bc we will get a MR build instead)
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
     - when: always
 
 cache:
