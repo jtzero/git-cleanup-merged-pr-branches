@@ -79,6 +79,10 @@ prevent-lightweight-tags:
 
 lint-test:
   stage: test
+  rules:
+   - changes:
+      - "bin/*"
+      - "lib/**/*"
   script:
     - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
     - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
