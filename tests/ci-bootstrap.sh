@@ -60,8 +60,7 @@ EOF
 
 set_up_azure() {
   local home_dir="${1}"
-  curl -sL https://aka.ms/InstallAzureCLIDeb | bash
-  az extension add --name azure-devops
+  mkdir -p "${home_dir}/.ssh"
   ssh-keyscan -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
   ssh-keyscan -t rsa -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
   git remote add origin "https://jtzero:${AZURE_DEVOPS_EXT_PAT}@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
