@@ -32,7 +32,7 @@ set -x
 docker image build ${EXTRA_ARGS}-t gcmpb-build -f "${ROOT_DIR}/tests/Dockerfile" .
 NEW_SHA="$(docker images --no-trunc --quiet gcmpb-build | cut -d ':' -f2-)"
 if [ "${EXISTING_SHA}" = "${NEW_SHA}" ]; then
-  LAST_EPOCH="$(docker inspect --format='{{json .RepoTags}}' gcmpb-build:latest | jq --raw-output  '.[]' | cut -d ':' -f2 | sort | head -n 1)"
+  LAST_EPOCH="$(docker inspect --format='{{json .RepoTags}}' gcmpb-build:latest | jq --raw-output '.[]' | cut -d ':' -f2 | sort | head -n 1)"
   docker push registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
   docker push "registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:${LAST_EPOCH}"
 else

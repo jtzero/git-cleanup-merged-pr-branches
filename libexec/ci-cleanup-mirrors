@@ -35,7 +35,6 @@ set_up_azure() {
   git remote add azure "https://jtzero:${AZURE_DEVOPS_EXT_PAT}@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
 }
 
-
 set_up_github "${HOME}" "${GITHUB_DEPLOY_KEY}"
 set_up_azure "${HOME}"
 

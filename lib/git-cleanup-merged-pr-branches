@@ -528,7 +528,6 @@ GIT_CHECKOUT_BRANCHES='BRANCHES'
 
 GIT_CHECKOUT_BRANCHES_OR_FILES=("${GIT_CHECKOUT_FILES}" "${GIT_CHECKOUT_BRANCHES}")
 
-
 should_run() {
   local -r skip_cleanup_merged_pr_branches="${1}"
   local -r branch_or_files="${2}"

@@ -2,7 +2,6 @@
 
 printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 
-
 set_up_asdf() {
   local cwd="${1}"
   git clone https://github.com/asdf-vm/asdf.git "${cwd}/.asdf" --branch v0.10.2 || true
