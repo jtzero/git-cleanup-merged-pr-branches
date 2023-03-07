@@ -31,6 +31,10 @@ printverbose() {
   fi
 }
 
+global_config_file_path() {
+  printf '%s' "${XDG_CONFIG_HOME:-$HOME}/.config/gcmpb"
+}
+
 config_file_path() {
   printf '%s' "$(git rev-parse --git-dir)/info/cleanup"
 }
@@ -43,10 +47,30 @@ config() {
   else
     printf ''
   fi
+  local -r global_config_filepath="$(global_config_file_path)"
+  if [ -f "${global_config_filepath}" ]; then
+    # shellcheck disable=SC2086
+    cat ${global_config_filepath}
+  else
+    printf ''
+  fi
+}
+
+run_on_new_branch_config_value() {
+  (config | grep 'run_on_new_branch=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
+}
+
+run_on_new_branch() {
+  local -r run_on_new_branch="$(run_on_new_branch_config_value)"
+  if [ -n "${run_on_new_branch}" ]; then
+    printf '%s' "${run_on_new_branch}"
+  else
+    printf 'false'
+  fi
 }
 
 excluded_by_config() {
-  (config | grep 'exclude=' || [[ $? == 1 ]]) | cut -d'=' -f2
+  (config | grep 'exclude=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
 }
 
 get_branches() {
@@ -371,7 +395,7 @@ handle_plan() {
   done
 
   local -r plan_to_delete=("${items[@]:0:$index}")
-  local -r dangling=("${items[@]:(($index + 1))}")
+  local -r dangling=("${items[@]:$(($index + 1))}")
 
   local apply='n'
   local -r verbose="${GCMPB_VERBOSE:-}"
@@ -499,11 +523,64 @@ EOS
 }
 
 CLONE_SHA='0000000000000000000000000000000000000000'
+GIT_CHECKOUT_FILES='FILES'
+GIT_CHECKOUT_BRANCHES='BRANCHES'
+
+GIT_CHECKOUT_BRANCHES_OR_FILES=("${GIT_CHECKOUT_FILES}" "${GIT_CHECKOUT_BRANCHES}")
+
+
+should_run() {
+  local -r skip_cleanup_merged_pr_branches="${1}"
+  local -r branch_or_files="${2}"
+  local -r interactive_rebase_in_progress="${3}"
+  local -r previous_sha="${4}"
+  local -r next_sha="${5}"
+  local -r config_run_on_new_branch="${6}"
+  if [ "${skip_cleanup_merged_pr_branches}" = "true" ]; then
+    printf 'false'
+  elif [ "${interactive_rebase_in_progress}" = "true" ]; then
+    printf 'false'
+  else
+    if [ "$(new_branch "${branch_or_files}" "${previous_sha}" "${next_sha}")" = "true" ]; then
+      if [ "${config_run_on_new_branch}" = "true" ]; then
+        printf 'true'
+      else
+        printf 'false'
+      fi
+    else
+      if [ "${branch_or_files}" = "${GIT_CHECKOUT_BRANCHES}" ] && [ "${previous_sha}" != "${CLONE_SHA}" ]; then
+        printf 'true'
+      else
+        printf 'false'
+      fi
+    fi
+  fi
+}
+
+new_branch() {
+  local -r branch_or_files="${1}"
+  local -r previous_sha="${2}"
+  local -r next_sha="${3}"
+  if [ "${branch_or_files}" = "${GIT_CHECKOUT_FILES}" ]; then
+    printf 'false'
+  else
+    if [ "${previous_sha}" = "${next_sha}" ]; then
+      printf 'true'
+    else
+      printf 'false'
+    fi
+  fi
+}
+
+branches_or_files_to_const() {
+  local -r raw="${1}"
+  printf '%s' "${GIT_CHECKOUT_BRANCHES_OR_FILES[$raw]}"
+}
 
 run() {
   local previous_sha="${1}"
   local next_sha="${2}"
-  local branch_or_files="${3}"
+  local branch_or_files_raw="${3}"
   local config_exclusions="${4}"
   local auto_apply="${5:-false}"
   local skip_cleanup_merged_pr_branches="${6:-false}"
@@ -512,6 +589,8 @@ run() {
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
+  local -r branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
+
   if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
     interactive_rebase_in_progress=true
   fi
@@ -519,9 +598,9 @@ run() {
   if [ "${config_exclusions}" != "" ]; then
     printverbose "${verbose}" "items excluded via config($(config_file_path)):${config_exclusions}:"
   fi
-  if [ "${skip_cleanup_merged_pr_branches}" = "false" ] && [ "${branch_or_files}" = "1" ] && [ "${interactive_rebase_in_progress}" = "false" ] && [ "${previous_sha}" != "${CLONE_SHA}" ]; then
+  if [ "$(should_run "${skip_cleanup_merged_pr_branches}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_new_branch_config_value)")" = "true" ]; then
     clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
   else
-    printverbose "${verbose}" "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PR_BRANCHES:${skip_cleanup_merged_pr_branches:-} or \$BRANCH_OR_FILES == 0:${branch_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
+    printverbose "${verbose}" "skipping clean_pr_merged_branches due to \$SKIP_CLEANUP_MERGED_PR_BRANCHES:${skip_cleanup_merged_pr_branches:-} or \$BRANCH_OR_FILES == 0:${branches_or_files} or interactive rebase in progress:${interactive_rebase_in_progress}"
   fi
 }

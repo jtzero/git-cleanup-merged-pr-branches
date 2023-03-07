@@ -1,0 +1,16 @@
+#!/usr/bin/env -S bash -l
+
+set -Eeuo
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  LIBEXEC_DIR="${0:A:h}"
+else
+  LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+fi
+
+cd "$(dirname "${LIBEXEC_DIR}")"
+
+shellcheck -s bash -x ./bin/git-cleanup-merged-pr-branches -P lib/ && shfmt -d bin lib
+
+cd - || exit 1

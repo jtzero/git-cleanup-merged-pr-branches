@@ -26,7 +26,7 @@ setup() {
 @test "config_file_path" {
   output="$(config_file_path)"
   unset -f git
-  assert_output --regexp '.git/.+?/cleanup'
+  assert_output --regexp '.git\/.+\/cleanup'
 }
 
 @test "config" {
@@ -36,6 +36,11 @@ setup() {
   output="$(config)"
   unset -f git
   assert_output ''
+}
+
+@test "excluded_by_config_default" {
+  output="$(excluded_by_config)"
+  assert_output ""
 }
 
 @test "printerr_stdout_empty" {
@@ -67,7 +72,7 @@ setup() {
   decide() {
     printf '%s' 'doit'
   }
-  output="$(decide_remote_group  "${DIR}/fixtures/platforms/gitlab.sh" "origin" "1111" "true")"
+  output="$(decide_remote_group "${DIR}/fixtures/platforms/gitlab.sh" "origin" "1111" "true")"
   assert_output "ZG9pdA=="
 }
 
@@ -109,7 +114,7 @@ setup() {
   git() {
     local remote_one="$(printf '%s' "${3}" | cut -d ' ' -f1)"
     local remote_two="$(printf '%s' "${3}" | cut -d ' ' -f2)"
-    cat<<-EOF
+    cat <<-EOF
 Pruning ${remote_one}
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
  * [pruning] origin/testing
@@ -120,7 +125,8 @@ EOF
   }
   local -r remotes_to_prune=('origin' 'upstream')
   output="$(interactive_prune_tracking true "${remotes_to_prune[*]}" false <<<$(printf $'y\n'))"
-  local -r expected="$(cat<<EOF
+  local -r expected="$(
+    cat <<EOF
 Pruning origin
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
  * [pruning] origin/testing
@@ -128,7 +134,7 @@ Pruning upstream
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
  * [pruning] upstream/testing
 EOF
-)"
+  )"
   assert_output "${expected}"
 }
 
@@ -149,4 +155,46 @@ EOF
   output="$(delete_branches 'ted')"
   expected="Deleted branch integration-test \(was .+\)"
   assert_output --regexp "${expected}"
+}
+
+@test "should_run_succeeds" {
+  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
+  expected="true"
+  assert_output "${expected}"
+}
+
+@test "should_run_skip" {
+  output="$(should_run "true" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
+  expected="false"
+  assert_output "${expected}"
+}
+
+@test "should_run_files" {
+  output="$(should_run "false" "FILES" "false" "asdfqwer" "asdf" "false")"
+  expected="false"
+  assert_output "${expected}"
+}
+
+@test "should_run_interactive_rebase" {
+  output="$(should_run "false" "BRANCHES" "true" "asdfqwer" "asdf" "false")"
+  expected="false"
+  assert_output "${expected}"
+}
+
+@test "should_run_on_clone" {
+  output="$(should_run "false" "BRANCHES" "false" "${CLONE_SHA}" "asdf" "false")"
+  expected="false"
+  assert_output "${expected}"
+}
+
+@test "should_run_new_branch_new_branch_and_config_true" {
+  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdfqwer" "true")"
+  expected="true"
+  assert_output "${expected}"
+}
+
+@test "should_run_new_branch_new_branch_and_config_false" {
+  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdfqwer" "false")"
+  expected="false"
+  assert_output "${expected}"
 }

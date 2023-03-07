@@ -45,12 +45,7 @@ bats-tests:
   stage: test
   image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
   script:
-    - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
-    - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
-    - . "${PWD}/.asdf/asdf.sh"
-    - cut -d' ' -f1 .tool-versions | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
-    - asdf install
-    - bash libexec/test
+    - ./libexec/test
 
 smoke-test-gitlab:
   stage: test
@@ -94,13 +89,7 @@ lint-test:
       - "bin/*"
       - "lib/**/*"
   script:
-    - git clone https://github.com/asdf-vm/asdf.git .asdf --branch v0.10.2 || true
-    - ln -nfs "${PWD}/.asdf" "${HOME}/.asdf"
-    - . "${PWD}/.asdf/asdf.sh"
-    - cut -d' ' -f1 .tool-versions | grep "^[^\#]" | xargs -i asdf plugin add  {} || true
-    - asdf install
-    - shellcheck -s bash -x ./bin/git-cleanup-merged-pr-branches -P lib/
-    - shfmt -d bin lib
+    - "./libexec/lint-test"
 
 clone-test:
   stage: test
