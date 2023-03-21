@@ -64,10 +64,10 @@ load_cache() {
 
 branch_was_deleted_remotely() {
   local -r remote_with_branch="${1}"
-  local -r remote="$(orintf '%s' "${remote_with_branch}" | cut -d'/' -f1)"
+  local -r remote="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f1)"
   local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
   load_cache "${remote}"
-  if [ -z "${GH_DELETED_BRANCHES}" ]; then
+  if [ -z "${GH_DELETED_BRANCHES:-}" ]; then
     GH_DELETED_BRANCHES="$(gh api 'repos/{owner}/{repo}/events' --jq '[.[] | select(.type=="DeleteEvent" and .payload.ref_type=="branch").payload.ref]')"
   fi
   printf '%s' "${GH_DELETED_BRANCHES}" | jq '. | contains(["'"${branch}"'"])'
