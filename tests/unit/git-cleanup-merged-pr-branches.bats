@@ -157,44 +157,87 @@ EOF
   assert_output --regexp "${expected}"
 }
 
-@test "should_run_succeeds" {
-  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
-  expected="true"
-  assert_output "${expected}"
-}
-
 @test "should_run_skip" {
   output="$(should_run "true" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
-  expected="false"
+  expected="false:skip_env_variable_set"
   assert_output "${expected}"
 }
 
 @test "should_run_files" {
   output="$(should_run "false" "FILES" "false" "asdfqwer" "asdf" "false")"
-  expected="false"
+  expected="false:checking_out_files"
   assert_output "${expected}"
 }
 
 @test "should_run_interactive_rebase" {
   output="$(should_run "false" "BRANCHES" "true" "asdfqwer" "asdf" "false")"
-  expected="false"
+  expected="false:interactive_rebase_is_in_progress"
   assert_output "${expected}"
 }
 
 @test "should_run_on_clone" {
   output="$(should_run "false" "BRANCHES" "false" "${CLONE_SHA}" "asdf" "false")"
-  expected="false"
+  expected="false:newly_cloned_repo"
   assert_output "${expected}"
 }
 
-@test "should_run_new_branch_new_branch_and_config_true" {
+@test "should_run_new_branch_and_config_true" {
+  new_branch() {
+    printf 'true'
+  }
   output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdfqwer" "true")"
   expected="true"
   assert_output "${expected}"
 }
 
-@test "should_run_new_branch_new_branch_and_config_false" {
+@test "should_run_new_branch_and_config_false" {
+  new_branch() {
+    printf 'true'
+  }
   output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdfqwer" "false")"
+  expected="false:run_on_first_move_to_newly_created_branch_set_to_false"
+  assert_output "${expected}"
+}
+
+@test "should_run_succeeds_on_not_a_new_branch" {
+  new_branch() {
+    printf 'false'
+  }
+  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
+  expected="true"
+  assert_output "${expected}"
+}
+
+@test "new_branch_returns_true_when_branch_moved_to_for_the_first_time" {
+  git() {
+    local arg="${1:-}"
+    local second_arg="${2:-}"
+    if [ "${arg}" = "reflog" ]; then
+      printf '5751447 (new-branch, main) HEAD@{10}: checkout: moving from main to new-branch'
+    elif [ "${arg}" = "branch" ] && [ "${second_arg}" = "--show-current" ]; then
+      printf 'new-branch'
+    else
+      git "$@"
+    fi
+  }
+  output="$(new_branch "BRANCHES" "asdfqwer" "asdfqwer")"
+  expected="true"
+  assert_output "${expected}"
+}
+
+@test "new_branch_returns_false_when_branch_moved_to_after_the_first_time" {
+  git() {
+    local arg="${1:-}"
+    local second_arg="${2:-}"
+    if [ "${arg}" = "reflog" ]; then
+      printf '%s\n%s\n' '5751447 (new-branch, main) HEAD@{10}: checkout: moving from main to new-branch' '5751447 (new-branch, main) HEAD@{10}: checkout: moving from main to new-branch'
+    elif [ "${arg}" = "branch" ] && [ "${second_arg}" = "--show-current" ]; then
+      printf 'new-branch'
+    else
+      git "$@"
+    fi
+  }
+  output="$(new_branch "BRANCHES" "asdfqwer" "asdfqwer")"
   expected="false"
   assert_output "${expected}"
 }
