@@ -36,7 +36,7 @@ global_config_file_path() {
 }
 
 config_file_path() {
-  printf '%s' "$(git rev-parse --git-dir)/info/cleanup"
+  printf '%s' "$(git rev-parse --git-dir)/info/gcmpb"
 }
 
 config() {
@@ -69,12 +69,12 @@ run_on_first_move_to_newly_created_branch() {
   fi
 }
 
-excluded_by_config() {
-  (config | grep 'exclude=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
+ignore_cleaning_branches_config_value() {
+  (config | grep 'ignore_cleaning_branches=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
 }
 
 get_branches() {
-  local config_exclusions="${1:-}"
+  local ignore_cleaning_branches="${1:-}"
   local -r current_branch="$(git branch --show-current)"
   local -r current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>&1)"
   local -r get_current_branch_result="$?"
@@ -91,12 +91,12 @@ get_branches() {
   local -r default_remote="$(git remote | head -n1)"
   local -r default_branch="$(git ls-remote --symref "${default_remote}" HEAD | grep 'ref' | cut -d'/' -f3 | cut -d$'\t' -f1)"
 
-  if [ "${config_exclusions}" = "" ]; then
-    config_exclusions=" "
+  if [ "${ignore_cleaning_branches}" = "" ]; then
+    ignore_cleaning_branches=" "
   fi
 
   local -r branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" |
-    grep -v "${default_remote}/${default_branch}" | grep -v -E "${config_exclusions}")"
+    grep -v "${default_remote}/${default_branch}" | grep -v -E "${ignore_cleaning_branches}")"
   printf '%s\n' "${branches_to_check}"
 }
 
@@ -597,12 +597,11 @@ run() {
   local previous_sha="${1}"
   local next_sha="${2}"
   local branch_or_files_raw="${3}"
-  local config_exclusions="${4}"
-  local auto_apply="${5:-false}"
-  local skip_cleanup_merged_pr_branches="${6:-false}"
-  local git_terminal_prompt_raw="${7:-1}"
-  local verbose="${8:-false}"
-  local spinner="${9:-true}"
+  local auto_apply="${4:-false}"
+  local skip_cleanup_merged_pr_branches="${5:-false}"
+  local git_terminal_prompt_raw="${6:-1}"
+  local verbose="${7:-false}"
+  local spinner="${8:-true}"
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
@@ -612,14 +611,16 @@ run() {
     interactive_rebase_in_progress=true
   fi
 
-  if [ "${config_exclusions}" != "" ]; then
-    printverbose "${verbose}" "items excluded via config($(config_file_path)):${config_exclusions}:"
+  local -r ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
+
+  if [ "${ignore_cleaning_branches}" != "" ]; then
+    printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
   fi
-  local -r should_run_result="$(should_run "${git_terminal_prompt_raw}" "${skip_cleanup_merged_pr_branches}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)")"
+  local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)")"
   local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
   local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
   if [ "${should_run_bool}" = "true" ]; then
-    clean_pr_merged_branches "$(get_branches "${config_exclusions}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
+    clean_pr_merged_branches "$(get_branches "${ignore_cleaning_branches}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
   else
     printverbose "${verbose}" "${should_not_run_reason}"
   fi

@@ -26,7 +26,7 @@ setup() {
 @test "config_file_path" {
   output="$(config_file_path)"
   unset -f git
-  assert_output --regexp '.git\/.+\/cleanup'
+  assert_output --regexp '.git\/.+\/gcmpb'
 }
 
 @test "config" {
@@ -38,8 +38,8 @@ setup() {
   assert_output ''
 }
 
-@test "excluded_by_config_default" {
-  output="$(excluded_by_config)"
+@test "ignore_cleaning_branches_config_value_default" {
+  output="$(ignore_cleaning_branches_config_value)"
   assert_output ""
 }
 
