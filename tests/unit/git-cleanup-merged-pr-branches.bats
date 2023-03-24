@@ -158,25 +158,25 @@ EOF
 }
 
 @test "should_run_skip" {
-  output="$(should_run "true" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
+  output="$(should_run "true" "1" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
   expected="false:skip_env_variable_set"
   assert_output "${expected}"
 }
 
 @test "should_run_files" {
-  output="$(should_run "false" "FILES" "false" "asdfqwer" "asdf" "false")"
+  output="$(should_run "false" "1" "FILES" "false" "asdfqwer" "asdf" "false")"
   expected="false:checking_out_files"
   assert_output "${expected}"
 }
 
 @test "should_run_interactive_rebase" {
-  output="$(should_run "false" "BRANCHES" "true" "asdfqwer" "asdf" "false")"
+  output="$(should_run "false" "1" "BRANCHES" "true" "asdfqwer" "asdf" "false")"
   expected="false:interactive_rebase_is_in_progress"
   assert_output "${expected}"
 }
 
 @test "should_run_on_clone" {
-  output="$(should_run "false" "BRANCHES" "false" "${CLONE_SHA}" "asdf" "false")"
+  output="$(should_run "false" "1" "BRANCHES" "false" "${CLONE_SHA}" "asdf" "false")"
   expected="false:newly_cloned_repo"
   assert_output "${expected}"
 }
@@ -185,7 +185,7 @@ EOF
   new_branch() {
     printf 'true'
   }
-  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdfqwer" "true")"
+  output="$(should_run "false" "1" "BRANCHES" "false" "asdfqwer" "asdfqwer" "true")"
   expected="true"
   assert_output "${expected}"
 }
@@ -194,7 +194,7 @@ EOF
   new_branch() {
     printf 'true'
   }
-  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdfqwer" "false")"
+  output="$(should_run "false" "1" "BRANCHES" "false" "asdfqwer" "asdfqwer" "false")"
   expected="false:run_on_first_move_to_newly_created_branch_set_to_false"
   assert_output "${expected}"
 }
@@ -203,7 +203,7 @@ EOF
   new_branch() {
     printf 'false'
   }
-  output="$(should_run "false" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
+  output="$(should_run "false" "1" "BRANCHES" "false" "asdfqwer" "asdf" "false")"
   expected="true"
   assert_output "${expected}"
 }

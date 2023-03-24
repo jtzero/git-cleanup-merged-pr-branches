@@ -530,13 +530,16 @@ GIT_CHECKOUT_BRANCHES_OR_FILES=("${GIT_CHECKOUT_FILES}" "${GIT_CHECKOUT_BRANCHES
 
 should_run() {
   local -r skip_cleanup_merged_pr_branches="${1}"
-  local -r branch_or_files="${2}"
-  local -r interactive_rebase_in_progress="${3}"
-  local -r previous_sha="${4}"
-  local -r next_sha="${5}"
-  local -r config_run_on_first_move_to_newly_created_branch="${6}"
+  local -r git_terminal_prompt_raw="${2}"
+  local -r branch_or_files="${3}"
+  local -r interactive_rebase_in_progress="${4}"
+  local -r previous_sha="${5}"
+  local -r next_sha="${6}"
+  local -r config_run_on_first_move_to_newly_created_branch="${7}"
   if [ "${skip_cleanup_merged_pr_branches}" = "true" ]; then
     printf 'false:skip_env_variable_set'
+  elif [ "${git_terminal_prompt_raw}" = "0" ]; then
+    printf 'false:git_terminal_prompt_set_to_zero'
   elif [ "${interactive_rebase_in_progress}" = "true" ]; then
     printf 'false:interactive_rebase_is_in_progress'
   else
@@ -581,6 +584,15 @@ branches_or_files_to_const() {
   printf '%s' "${GIT_CHECKOUT_BRANCHES_OR_FILES[$raw]}"
 }
 
+int_to_bool() {
+  local -r int="${1}"
+  if [ "${int}" = "0" ]; then
+    printf "false"
+  else
+    printf "true"
+  fi
+}
+
 run() {
   local previous_sha="${1}"
   local next_sha="${2}"
@@ -588,8 +600,9 @@ run() {
   local config_exclusions="${4}"
   local auto_apply="${5:-false}"
   local skip_cleanup_merged_pr_branches="${6:-false}"
-  local verbose="${7:-false}"
-  local spinner="${8:-true}"
+  local git_terminal_prompt_raw="${7:-1}"
+  local verbose="${8:-false}"
+  local spinner="${9:-true}"
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
@@ -602,7 +615,7 @@ run() {
   if [ "${config_exclusions}" != "" ]; then
     printverbose "${verbose}" "items excluded via config($(config_file_path)):${config_exclusions}:"
   fi
-  local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)")"
+  local -r should_run_result="$(should_run "${git_terminal_prompt_raw}" "${skip_cleanup_merged_pr_branches}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)")"
   local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
   local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
   if [ "${should_run_bool}" = "true" ]; then
