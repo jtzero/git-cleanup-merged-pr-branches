@@ -73,6 +73,23 @@ ignore_cleaning_branches_config_value() {
   (config | grep 'ignore_cleaning_branches=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
 }
 
+time_buffer_config_value() {
+  (config | grep 'time_buffer=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
+}
+
+time_buffer() {
+  local -r time_buffer="$(time_buffer_config_value)"
+  if [ -n "${time_buffer}" ]; then
+    if printf '%s' "${time_buffer}" | grep -q -E "\d+"; then
+      printf '%s' "${time_buffer}"
+    else
+      printerr "time_buffer config vaule of:'${time_buffer}' does not match \d+"
+    fi
+  else
+    printf '120'
+  fi
+}
+
 get_branches() {
   local ignore_cleaning_branches="${1:-}"
   local -r current_branch="$(git branch --show-current)"
@@ -522,6 +539,46 @@ help() {
 EOS
 }
 
+cache_filepath() {
+  local -r cache_file="$(git rev-parse --git-dir)/info/gcmpb.cache"
+  touch "${cache_file}"
+  printf '%s' "${cache_file}"
+}
+
+cache_file() {
+  cat "$(cache_filepath)"
+}
+
+save_current_run_time_to_cache() {
+  local -r filepath="$(cache_filepath)"
+  printf '%s' "$(cache_file | grep -v 'last_ran_at=' || [[ $? == 1 ]])" >"${filepath}"
+  printf 'last_ran_at=%s\n' "$(date +%s)" >>"${filepath}"
+}
+
+get_last_run_time() {
+  (cache_file | grep 'last_ran_at=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
+}
+
+is_past_buffer_time() {
+  local -r buffer_time_override="${1:-}"
+  local -r last_run_time="$(get_last_run_time)"
+  if [ "${buffer_time_override}" = "0" ]; then
+    printf 'true'
+  else
+    if [ -z "${last_run_time}" ]; then
+      save_current_run_time_to_cache
+      printf 'false'
+    else
+      local -r time_buffer_value="$(time_buffer)"
+      if ((($(date +%s) - last_run_time) > time_buffer_value)); then
+        printf 'true'
+      else
+        printf 'false'
+      fi
+    fi
+  fi
+}
+
 CLONE_SHA='0000000000000000000000000000000000000000'
 GIT_CHECKOUT_FILES='FILES'
 GIT_CHECKOUT_BRANCHES='BRANCHES'
@@ -536,8 +593,12 @@ should_run() {
   local -r previous_sha="${5}"
   local -r next_sha="${6}"
   local -r config_run_on_first_move_to_newly_created_branch="${7}"
+  local -r buffer_time_override="${8}"
+
   if [ "${skip_cleanup_merged_pr_branches}" = "true" ]; then
     printf 'false:skip_env_variable_set'
+  elif [ "$(is_past_buffer_time "${buffer_time_override}")" = "false" ]; then
+    printf 'false:not_past_buffer_time'
   elif [ "${git_terminal_prompt_raw}" = "0" ]; then
     printf 'false:git_terminal_prompt_set_to_zero'
   elif [ "${interactive_rebase_in_progress}" = "true" ]; then
@@ -545,6 +606,7 @@ should_run() {
   else
     if [ "$(new_branch "${branch_or_files}" "${previous_sha}" "${next_sha}")" = "true" ]; then
       if [ "${config_run_on_first_move_to_newly_created_branch}" = "true" ]; then
+        save_current_run_time_to_cache
         printf 'true'
       else
         printf 'false:run_on_first_move_to_newly_created_branch_set_to_false'
@@ -554,6 +616,7 @@ should_run() {
         printf 'false:newly_cloned_repo'
       else
         if [ "${branch_or_files}" = "${GIT_CHECKOUT_BRANCHES}" ]; then
+          save_current_run_time_to_cache
           printf 'true'
         else
           printf 'false:checking_out_files'
@@ -602,6 +665,7 @@ run() {
   local git_terminal_prompt_raw="${6:-1}"
   local verbose="${7:-false}"
   local spinner="${8:-true}"
+  local buffer_time_override="${9:-}"
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
@@ -616,7 +680,7 @@ run() {
   if [ "${ignore_cleaning_branches}" != "" ]; then
     printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
   fi
-  local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)")"
+  local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)" "${buffer_time_override}")"
   local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
   local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
   if [ "${should_run_bool}" = "true" ]; then
