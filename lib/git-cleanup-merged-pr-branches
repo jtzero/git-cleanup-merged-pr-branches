@@ -540,7 +540,9 @@ EOS
 }
 
 cache_filepath() {
-  local -r cache_file="$(git rev-parse --git-dir)/info/gcmpb.cache"
+  local -r info_dir="$(git rev-parse --git-dir)/info"
+  mkdir -p "${info_dir}"
+  local -r cache_file="${info_dir}/gcmpb.cache"
   touch "${cache_file}"
   printf '%s' "${cache_file}"
 }
