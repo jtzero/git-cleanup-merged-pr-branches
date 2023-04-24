@@ -87,6 +87,8 @@ prepare_testing_branch() {
 
 printf '\n=======SETUP\n'
 
+export GCMPB_BUFFER_SECONDS="0"
+
 ROOT_DIR="${PWD}"
 
 set_up_asdf "${ROOT_DIR}"
