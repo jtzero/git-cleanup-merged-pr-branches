@@ -34,7 +34,7 @@ help | --help | ? | --?)
   help true
   ;;
 "")
-  run "" "" "1" "${GCMPB_AUTO_APPLY:-false}" "${GCMPB_SKIP_CLEANUP_MERGED_PR_BRANCHES:-false}" "${GIT_TERMINAL_PROMPT:-1}" "${GCMPB_VERBOSE:-false}" "${GCMPB_BUFFER_SECONDS:-0}"
+  run "" "" "1" "${GCMPB_AUTO_APPLY:-false}" "${GCMPB_SKIP_CLEANUP_MERGED_PR_BRANCHES:-false}" "${GIT_TERMINAL_PROMPT:-1}" "${GCMPB_VERBOSE:-false}" "${GCMPB_SPINNER:-true}" "${GCMPB_BUFFER_SECONDS:-0}"
   ;;
 *)
   printerr "unknown command"

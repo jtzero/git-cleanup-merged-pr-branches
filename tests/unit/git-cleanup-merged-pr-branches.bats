@@ -23,6 +23,22 @@ setup() {
   assert_output 'found:boatbin'
 }
 
+@test "detect_pruneable" {
+  git() {
+    if [ "${2:-}" = "prune" ]; then
+      printf '%s\n%s\n%s\n' 'Pruning origin' 'URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [would prune] origin/test-branch'
+    elif [ "${2:-}" = "" ]; then
+      printf '%s\n%s\n' 'origin' 'upstream'
+    fi
+  }
+  output="$(detect_pruneable)"
+  assert_output <<EOF
+  'Pruning origin
+URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
+ * [would prune] origin/test-branch
+EOF
+}
+
 @test "config_file_path" {
   output="$(config_file_path)"
   unset -f git

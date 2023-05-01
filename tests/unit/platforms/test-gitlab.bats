@@ -38,17 +38,10 @@ EOF
 
 @test "get_decision_on_branch_with_pr_gitlab_opened" {
   . "${ROOT_DIR}/lib/platforms/gitlab.sh"
-  local -r json="$(
-    cat <<'EOF'
-[{"state": "opened", "id": 11111 }]
-EOF
-  )"
+  local -r json='[{"state": "opened", "id": 11111 }]'
   output="$(get_decision_on_branch_with_pr 'local-branch' 'remote-branch' "${json}")"
-  local -r expected="$(
-    cat <<'EOF'
-skip:local-branch:local-branch->remote-branch has open pr's, not deleting:[{"state": "opened", "id": 11111 }]
-EOF
-  )"
+
+  local -r expected=$'skip:local-branch:local-branch->remote-branch has open pr\'s, not deleting:[{"state": "opened", "id": 11111 }]'
   assert_output "${expected}"
 }
 
@@ -60,11 +53,7 @@ EOF
 EOF
   )"
   output="$(get_decision_on_branch_without_pr 'local-branch' 'remote-branch' "${json}")"
-  local -r expected="$(
-    cat <<'EOF'
-skip:local-branch:local-branch->remote-branch never had a pr, not deleting:[]
-EOF
-  )"
+  local -r expected='skip:local-branch:local-branch->remote-branch never had a pr, not deleting:[]'
   assert_output "${expected}"
 }
 
@@ -78,10 +67,6 @@ EOF
 EOF
   )"
   output="$(get_decision_on_branch_without_pr 'local-branch' 'remote-branch' "${json}")"
-  local -r expected="$(
-    cat <<'EOF'
-warning_deleted_on_remote:local-branch:local-branch->remote-branch never had a pr, but was deleted on remote:[]
-EOF
-  )"
+  local -r expected='warning_deleted_on_remote:local-branch:local-branch->remote-branch never had a pr, but was deleted on remote:[]'
   assert_output "${expected}"
 }

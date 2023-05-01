@@ -90,6 +90,7 @@ time_buffer() {
   fi
 }
 
+# TODO remove get_ prefix
 get_branches() {
   local ignore_cleaning_branches="${1:-}"
   local -r current_branch="$(git branch --show-current)"
@@ -105,16 +106,21 @@ get_branches() {
       exit 1
     fi
   fi
-  local -r default_remote="$(git remote | head -n1)"
-  local -r default_branch="$(git ls-remote --symref "${default_remote}" HEAD | grep 'ref' | cut -d'/' -f3 | cut -d$'\t' -f1)"
+  local -r remotes="$(git remote)"
+  if [ -n "${remotes}" ]; then
+    local -r default_remote="$(git remote | head -n1)"
+    local -r default_branch="$(git ls-remote --symref "${default_remote}" HEAD | grep 'ref' | cut -d'/' -f3 | cut -d$'\t' -f1)"
 
-  if [ "${ignore_cleaning_branches}" = "" ]; then
-    ignore_cleaning_branches=" "
+    if [ "${ignore_cleaning_branches}" = "" ]; then
+      ignore_cleaning_branches=" "
+    fi
+
+    local -r branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" |
+      grep -v "${default_remote}/${default_branch}" | grep -v -E "${ignore_cleaning_branches}")"
+    printf '%s\n' "${branches_to_check}"
+  else
+    printf '\n'
   fi
-
-  local -r branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" |
-    grep -v "${default_remote}/${default_branch}" | grep -v -E "${ignore_cleaning_branches}")"
-  printf '%s\n' "${branches_to_check}"
 }
 
 join_by() {
@@ -162,6 +168,16 @@ kill_spinner_if_running() {
   local spinner_pid="${1}"
   if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
     kill "${spinner_pid}" >/dev/null 2>&1
+  fi
+}
+
+detect_pruneable() {
+  read -r -a pruneable_remotes <<<"$(git remote)"
+  if [ -n "${pruneable_remotes[*]}" ]; then
+    # shellcheck disable=SC2046
+    git remote prune -n "${pruneable_remotes[@]}"
+  else
+    printf ''
   fi
 }
 
@@ -217,8 +233,7 @@ clean_pr_merged_branches() {
     done
   done
 
-  # shellcheck disable=SC2046
-  local -r pruneable="$(git remote prune -n $(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' '))"
+  local -r pruneable="$(detect_pruneable)"
 
   if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ]; then
     kill_spinner_if_running "${spinner_pid}"
