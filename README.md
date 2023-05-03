@@ -19,10 +19,10 @@
 
   ## Steps
   ```bash
-  git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable \
+  git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${XDG_DATA_HOME:-${HOME}/.local/share}/git-cleanup-merged-pr-branches" --branch stable \
   && mkdir "${HOME}/.git-hooks" \
   && git config --global core.hooksPath "${HOME}/.git-hooks" \
-  && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
+  && ln -nfs "${XDG_DATA_HOME:-${HOME}/.local/share}/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
   ```
 
 # Usage as post-checkout hook with first time log in
