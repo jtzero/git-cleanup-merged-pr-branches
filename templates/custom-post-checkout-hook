@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#
+#
+
+set -Eeuo pipefail
+
+PREVIOUS_SHA="${1:-}"
+# shellcheck disable=SC2034
+NEXT_SHA="${2:-}"
+BRANCH_OR_FILES="${3:-}"
+
+git-cleanup-merged-pr-branches-git-hook "${PREVIOUS_SHA}" "${NEXT_SHA}" "${BRANCH_OR_FILES}"
+
+# other things
