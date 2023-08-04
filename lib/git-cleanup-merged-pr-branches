@@ -643,6 +643,10 @@ should_run() {
   fi
 }
 
+is_in_git_repo() {
+  git rev-parse --is-inside-work-tree 2>/dev/null || printf '%s\n' 'false' # \n is to match format of rev-parse
+}
+
 new_branch() {
   local -r branch_or_files="${1}"
   local -r previous_sha="${2}"
@@ -686,23 +690,27 @@ run() {
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
-  local -r branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
+  if [ "$(is_in_git_repo)" = "true" ]; then
+    local -r branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
 
-  if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
-    interactive_rebase_in_progress=true
-  fi
+    if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
+      interactive_rebase_in_progress=true
+    fi
 
-  local -r ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
+    local -r ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
 
-  if [ "${ignore_cleaning_branches}" != "" ]; then
-    printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
-  fi
-  local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)" "${buffer_time_override}")"
-  local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
-  local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
-  if [ "${should_run_bool}" = "true" ]; then
-    clean_pr_merged_branches "$(get_branches "${ignore_cleaning_branches}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
+    if [ "${ignore_cleaning_branches}" != "" ]; then
+      printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
+    fi
+    local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" "$(run_on_first_move_to_newly_created_branch_config_value)" "${buffer_time_override}")"
+    local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
+    local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
+    if [ "${should_run_bool}" = "true" ]; then
+      clean_pr_merged_branches "$(get_branches "${ignore_cleaning_branches}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
+    else
+      printverbose "${verbose}" "${should_not_run_reason}"
+    fi
   else
-    printverbose "${verbose}" "${should_not_run_reason}"
+    printf '%s\n' 'cannot determine if in a git repo'
   fi
 }
