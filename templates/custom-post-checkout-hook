@@ -9,6 +9,9 @@ PREVIOUS_SHA="${1:-}"
 NEXT_SHA="${2:-}"
 BRANCH_OR_FILES="${3:-}"
 
-git-cleanup-merged-pr-branches-git-hook "${PREVIOUS_SHA}" "${NEXT_SHA}" "${BRANCH_OR_FILES}"
+this_real_dir="$(readlink -f "${BASH_SOURCE[0]}")"
+hook="$(dirname "$(dirname "${this_real_dir}")")/bin/git-cleanup-merged-pr-branches-git-hook"
+
+"${hook}" "${PREVIOUS_SHA}" "${NEXT_SHA}" "${BRANCH_OR_FILES}"
 
 # other things
