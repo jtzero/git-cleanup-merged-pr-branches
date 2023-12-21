@@ -470,6 +470,9 @@ apply_partial() {
   local -r items=("${@:3}")
 
   for branch in "${items[@]}"; do
+    if [ "${branch}" = "|" ]; then
+      continue
+    fi
     local -r should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
     if [ "${should_delete}" = "y" ]; then
       delete_branches "${branch}"
