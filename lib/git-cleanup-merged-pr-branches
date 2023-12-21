@@ -429,13 +429,23 @@ handle_plan() {
   local -r plan_to_delete=("${items[@]:0:$index}")
   local -r dangling=("${items[@]:$(($index + 1))}")
 
-  local apply='n'
+  local apply='_'
   local -r verbose="${GCMPB_VERBOSE:-}"
   if [ "${auto_apply}" = "true" ]; then
     apply='y'
   else
-    apply="$(ask 'apply changes? (y/n/p/i) ' "${force_interactive}")"
+    while [[ "ynpi" != *"${apply}"* ]]; do
+      apply="$(ask 'apply changes? (y,n,p,i,h,?) ' "${force_interactive}")"
+      if [[ "h?" == *"${apply}"* ]]; then
+        interactive_help
+      fi
+    done
   fi
+
+  if [ "${apply}" = "_" ]; then
+    apply='n'
+  fi
+
   if [ "${apply}" = "y" ]; then
     apply_plan "${plan_to_delete[@]}"
   elif [ "${apply}" = "i" ]; then
@@ -521,11 +531,11 @@ interactive_help() {
   # shellcheck disable=SC2006
   cat <<-'EOS'
   Interactive options: (case sensitive)
-    y: yes
-    n: no
-    i: include dangling
-    p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p
-    h: print this help
+      y: yes
+      n: no
+      i: include dangling
+      p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p
+    h,?: print this help
 EOS
 }
 
