@@ -37,7 +37,9 @@ help)
   help
   ;;
 *)
-  run "${PREVIOUS_SHA}" "${NEXT_SHA}" "${BRANCH_OR_FILES}" "${GCMPB_AUTO_APPLY:-false}" "${GCMPB_SKIP_CLEANUP_MERGED_PR_BRANCHES:-false}" "${GIT_TERMINAL_PROMPT:-1}" "${GCMPB_VERBOSE:-false}" "${GCMPB_SPINNER:-true}" "${GCMPB_BUFFER_SECONDS:-}"
+  run "${PREVIOUS_SHA}" "${NEXT_SHA}" "${BRANCH_OR_FILES}" "${GCMPB_AUTO_APPLY:-false}" \
+    "${GCMPB_SKIP_CLEANUP_MERGED_PR_BRANCHES:-false}" "${GIT_TERMINAL_PROMPT:-1}" \
+    "${GCMPB_VERBOSE:-false}" "${GCMPB_SPINNER:-true}" "${GCMPB_BUFFER_SECONDS:-}" false
   ;;
 esac
 
