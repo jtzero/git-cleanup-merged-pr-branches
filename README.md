@@ -1,4 +1,3 @@
-
 # GCMPB <sub><sup><sub>git-cleanup-merged-pr-branches</sub></sup></sub>
 ![broom](./web/broom-logo-wide.jpg)
 
@@ -44,7 +43,7 @@
 - The first time you use the hook it will ask you to log in to the respective VCS server.
 - Then once you have switched branches, if any branches have a PR that has been merged or closed, the tui will ask you if you want to delete it.
 
-[![asciicast](https://asciinema.org/a/547663.svg)](https://asciinema.org/a/547663)
+[![asciicast](https://asciinema.org/a/629452.svg)](https://asciinema.org/a/629452)
 
 # Usage Info
   `bin/git-cleanup-merged-pr-branches-git-hook help` OR `bin/git-cleanup-merged-pr-branches help`
