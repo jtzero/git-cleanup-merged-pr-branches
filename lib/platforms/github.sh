@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+set -Eeuo pipefail
 # shellcheck disable=SC2034
 COMPLETED_STATES=('MERGED' 'CLOSED')
 
@@ -41,6 +43,10 @@ get_states() {
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
   local -r owner_and_repo="$(git remote get-url --push "${remote}" | cut -d':' -f2 | cut -d'.' -f1)"
   gh pr list -R "${owner_and_repo}" --head "${branch}" --state all --json state,id
+  local exit_code=$?
+  if [ "${exit_code}" != "0" ]; then
+    exit ${exit_code}
+  fi
 }
 
 get_any_open_states() {

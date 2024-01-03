@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# reqs: realpath
+# reqs: realpath=="(GNU coreutils) 9.4" base64=="(GNU coreutils) 9.4"
 # TODO pass GCMPB_VERBOSE around instead of global
 
 set -Eeuo pipefail
@@ -9,17 +9,22 @@ if shopt | grep -q 'inherit_errexit'; then
   shopt -s inherit_errexit
 fi
 
-if [ -z "${BASH_SOURCE[0]:-}" ]; then
-  # zsh
-  GCMPB_DIR="${0:A:h}"
-  # shellcheck disable=SC2034
-  IS_ZSH=1
-else
-  if ! command -v realpath >/dev/null 2>&1; then
-    exit 1
+if [ -z "${GCMPB_LIB_DIR:-}" ]; then
+  if [ -z "${BASH_SOURCE[0]:-}" ]; then
+    # zsh
+    GCMPB_LIB_DIR="${0:A:h}"
+    # shellcheck disable=SC2034
+    IS_ZSH=1
+  else
+    if ! command -v realpath >/dev/null 2>&1; then
+      exit 1
+    fi
+    GCMPB_LIB_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+    # shellcheck disable=SC2034
+    IS_BASH=1
   fi
-  GCMPB_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-  # shellcheck disable=SC2034
+else
+  # TODO this should be passed in
   IS_BASH=1
 fi
 
@@ -45,14 +50,18 @@ config_file_path() {
 }
 
 config() {
-  local -r config_filepath="$(config_file_path)"
+  local config_filepath
+  config_filepath="$(config_file_path)"
+  readonly config_filepath
   if [ -f "${config_filepath}" ]; then
     # shellcheck disable=SC2086
     cat ${config_filepath}
   else
     printf ''
   fi
-  local -r global_config_filepath="$(global_config_file_path)"
+  local global_config_filepath
+  global_config_filepath="$(global_config_file_path)"
+  readonly global_config_filepath
   if [ -f "${global_config_filepath}" ]; then
     # shellcheck disable=SC2086
     cat ${global_config_filepath}
@@ -66,9 +75,11 @@ run_on_first_move_to_newly_created_branch_config_value() {
 }
 
 should_run_on_first_move_to_newly_created_branch() {
-  local -r run_on_first_move_to_newly_created_branch="$(run_on_first_move_to_newly_created_branch_config_value)"
-  if [ -n "${run_on_first_move_to_newly_created_branch}" ]; then
-    printf '%s' "${run_on_first_move_to_newly_created_branch}"
+  local run_on_first_move_to_newly_created_branch_config_value
+  run_on_first_move_to_newly_created_branch_config_value="$(run_on_first_move_to_newly_created_branch_config_value)"
+  readonly run_on_first_move_to_newly_created_branch_config_value
+  if [ -n "${run_on_first_move_to_newly_created_branch_config_value}" ]; then
+    printf '%s' "${run_on_first_move_to_newly_created_branch_config_value}"
   else
     printf 'false'
   fi
@@ -83,7 +94,9 @@ time_buffer_config_value() {
 }
 
 time_buffer() {
-  local -r time_buffer="$(time_buffer_config_value)"
+  local time_buffer
+  time_buffer="$(time_buffer_config_value)"
+  readonly time_buffer
   if [ -n "${time_buffer}" ]; then
     if printf '%s' "${time_buffer}" | grep -q -E "\d+"; then
       printf '%s' "${time_buffer}"
@@ -98,11 +111,16 @@ time_buffer() {
 # TODO remove get_ prefix
 get_branches() {
   local ignore_cleaning_branches="${1:-}"
-  local -r current_branch="$(git branch --show-current)"
-  local -r current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>&1)"
-  local -r get_current_branch_result="$?"
+  local current_branch current_remote_branch_parse
+  current_branch="$(git branch --show-current)"
+  local get_current_branch_result=0
+  current_remote_branch_parse="$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>&1)" || get_current_branch_result="$?"
+  readonly current_branch current_remote_branch_parse get_current_branch_result
+
   if [[ "${current_remote_branch_parse}" == "fatal: no upstream configured for branch"* ]]; then
     local current_branch_with_remote=":${current_branch}"
+  elif [[ "${current_remote_branch_parse}" == "fatal: HEAD does not point to a branch"* ]]; then
+    local current_branch_with_remote=" "
   else
     if [ "${get_current_branch_result}" = '0' ]; then
       local current_branch_with_remote="${current_remote_branch_parse}:${current_branch}"
@@ -111,17 +129,23 @@ get_branches() {
       exit 1
     fi
   fi
-  local -r remotes="$(git remote)"
+  local remotes
+  remotes="$(git remote)"
+  readonly remotes
   if [ -n "${remotes}" ]; then
-    local -r default_remote="$(git remote | head -n1)"
-    local -r default_branch="$(git ls-remote --symref "${default_remote}" HEAD | grep 'ref' | cut -d'/' -f3 | cut -d$'\t' -f1)"
+    local default_remote default_branch
+    default_remote="$(git remote | head -n1)"
+    default_branch="$(git ls-remote --symref "${default_remote}" HEAD | grep 'ref' | cut -d'/' -f3 | cut -d$'\t' -f1)"
+    readonly default_remote default_branch
 
     if [ "${ignore_cleaning_branches}" = "" ]; then
       ignore_cleaning_branches=" "
     fi
 
-    local -r branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" |
+    local branches_to_check
+    branches_to_check="$(git for-each-ref --format='%(upstream:short):%(refname:short)' refs/heads/ | grep -Ev '^:' | grep -v "${current_branch_with_remote}" |
       grep -v "${default_remote}/${default_branch}" | grep -v -E "${ignore_cleaning_branches}")"
+    readonly branches_to_check
     printf '%s\n' "${branches_to_check}"
   else
     printf '\n'
@@ -142,7 +166,9 @@ available_platforms() {
 query_vcs_platform() {
   local -r remote="${1}"
   local -r platforms_available="${2}"
-  local -r platform="$(git remote -v | grep 'push' | grep -E "^${remote}" | cut -d$'\t' -f2- | grep -o -E "${platforms_available}" | head -n1)"
+  local platform
+  platform="$(git remote -v | grep 'push' | grep -E "^${remote}" | cut -d$'\t' -f2- | grep -o -E "${platforms_available}" | head -n1)"
+  readonly platform
   if [ -z "${platform}" ]; then
     # shellcheck disable=SC2016
     printf '%s:%s' 'not_found:platform not found from `git remote -v`' "${platforms_available}"
@@ -188,13 +214,17 @@ detect_pruneable() {
 
 clean_pr_merged_branches() {
   local branches_to_check="${1}"
-  local auto_apply="${2:-false}"
-  local verbose="${3:-}"
-  local spinner="${4:-true}"
+  local -r platforms_directory="${2}"
+  local auto_apply="${3:-false}"
+  local verbose="${4:-}"
+  local spinner="${5:-true}"
   # TODO rename to to_delete
   local toDelete=()
   local dangling=()
-  local -r platforms_available="$(available_platforms "${GCMPB_DIR}/platforms")"
+  local platforms_available
+  local platform_paths=()
+  platforms_available="$(available_platforms "${platforms_directory}")"
+  readonly platforms_available
   local spinner_pid=""
   if [ "${spinner}" = "true" ]; then
     (
@@ -213,12 +243,13 @@ clean_pr_merged_branches() {
     platform_query_discrete="$(cut -d':' -f1 <<<"${platform_query_result}")"
     if [ "${platform_query_discrete}" = "not_found" ]; then
       kill_spinner_if_running "${spinner_pid}"
-      printf '%s\n%s' "${platform} in ${GCMPB_DIR}/platforms/" "$(ls "${GCMPB_DIR}/platforms/")"
+      printf '%s\n%s' "${platform} in ${platforms_directory}/" "$(ls "${platforms_directory}/")"
       exit 22
     fi
 
     platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
-    local platform_path="${GCMPB_DIR}/platforms/${platform}.sh"
+    local platform_path="${platforms_directory}/${platform}.sh"
+    platform_paths[${#platform_paths[@]}]="${platform_path}"
     if [ "${platform_loaded}" != "${platform}" ]; then
       platform_loaded="${platform}"
     fi
@@ -239,7 +270,9 @@ clean_pr_merged_branches() {
     done
   done
 
-  local -r pruneable="$(detect_pruneable)"
+  local pruneable
+  pruneable="$(detect_pruneable)"
+  readonly pruneable
 
   if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ]; then
     kill_spinner_if_running "${spinner_pid}"
@@ -249,7 +282,9 @@ clean_pr_merged_branches() {
     kill_spinner_if_running "${spinner_pid}"
   fi
   printf '\n'
-  post_run "${platform_path}"
+  for platform_path in "${platform_paths[@]}"; do
+    post_run "${platform_path}"
+  done
 }
 
 print_menu() {
@@ -318,7 +353,9 @@ decide() {
     pre_init_hook "${spinner_pid}"
   fi
 
-  local -r states="$(get_states "${remote_branch}")"
+  local states
+  states="$(get_states "${remote_branch}")"
+  readonly states
 
   local -r had_a_pr="$(printf '%s\n' "${states}" | jq '. | length > 0')"
   if [ "${had_a_pr}" = "true" ]; then
@@ -350,10 +387,13 @@ get_decision_on_branch_with_pr() {
   local -r remote_branch="${2}"
   local -r states="${3}"
 
-  local -r any_open_statuses="$(get_any_open_states "${states}")"
+  local any_open_statuses
+  any_open_statuses="$(get_any_open_states "${states}")"
+  readonly any_open_statuses
   if [ "${any_open_statuses}" = "false" ]; then
     local only_completed=""
     only_completed="$(get_only_completed "${states}")"
+    readonly only_completed
     if [ "${only_completed}" = "true" ]; then
       decide_print "${DECIDE_DELETE}" "${local_branch}" "${local_branch}->${remote_branch} had a pr that completed" "${states}"
     else
@@ -396,6 +436,8 @@ ask() {
   local -r force_interactive="${2:-true}"
   local apply='n'
   local init_interactive
+  # TODO if this fails?
+  # shellcheck disable=SC2155
   local -r tty_value="$(tty)"
 
   if [[ "${-}" =~ 'i' ]]; then
@@ -468,9 +510,13 @@ apply_plan() {
   if [ "${#to_delete[@]}" -gt 0 ]; then
     delete_branches "$(echo "${to_delete[@]}" | tr "\n" " " | tr -s " ")"
   fi
-  local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+  local all_remotes
+  all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+  readonly all_remotes
   # shellcheck disable=SC2086
-  local -r pruneable="$(git remote prune -n ${all_remotes})"
+  local -r pruneable
+  pruneable="$(git remote prune -n ${all_remotes})"
+  readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
     for remote_name in ${all_remotes}; do
@@ -493,16 +539,21 @@ apply_partial() {
     if [ "${branch}" = "|" ]; then
       continue
     fi
-    local -r should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
+    local should_delete
+    should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
     if [ "${should_delete}" = "y" ]; then
       delete_branches "${branch}"
     else
       printverbose "${verbose}" "not deleting...${branch}"
     fi
   done
-  local -r all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+  local all_remotes
+  all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
+  readonly all_remotes
   # shellcheck disable=SC2086
-  local -r pruneable="$(git remote prune -n ${all_remotes})"
+  local pruneable
+  pruneable="$(git remote prune -n "${all_remotes}")"
+  readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
     for remote_name in ${all_remotes}; do
@@ -520,7 +571,9 @@ interactive_prune_tracking() {
   local -r verbose="${1}"
   local -r remotes_to_prune="${2}"
   local -r force_interactive="${3:-true}"
-  local -r prune="$(ask "prune tracking? (y/n)" "${force_interactive}")"
+  local prune
+  prune="$(ask "prune tracking? (y/n)" "${force_interactive}")"
+  readonly prune
   if [ "${prune}" = 'y' ]; then
     prune_tracking "${remotes_to_prune}"
   else
@@ -591,7 +644,9 @@ EOS
 }
 
 cache_filepath() {
-  local -r info_dir="$(git rev-parse --git-dir)/info"
+  local info_dir
+  info_dir="$(git rev-parse --git-dir)/info"
+  readonly info_dir
   mkdir -p "${info_dir}"
   local -r cache_file="${info_dir}/gcmpb.cache"
   touch "${cache_file}"
@@ -603,7 +658,9 @@ cache_file() {
 }
 
 save_current_run_time_to_cache() {
-  local -r filepath="$(cache_filepath)"
+  local filepath
+  filepath="$(cache_filepath)"
+  readonly filepath
   printf '%s' "$(cache_file | grep -v 'last_ran_at=' || [[ $? == 1 ]])" >"${filepath}"
   printf 'last_ran_at=%s\n' "$(date +%s)" >>"${filepath}"
 }
@@ -614,7 +671,9 @@ get_last_run_time() {
 
 is_past_buffer_time() {
   local -r buffer_time_override="${1:-}"
-  local -r last_run_time="$(get_last_run_time)"
+  local last_run_time
+  last_run_time="$(get_last_run_time)"
+  readonly last_run_time
   if [ "${buffer_time_override}" = "0" ]; then
     printf 'true'
   else
@@ -622,7 +681,9 @@ is_past_buffer_time() {
       save_current_run_time_to_cache
       printf 'false'
     else
-      local -r time_buffer_value="$(time_buffer)"
+      local time_buffer_value
+      time_buffer_value="$(time_buffer)"
+      readonly time_buffer_value
       if ((($(date +%s) - last_run_time) > time_buffer_value)); then
         printf 'true'
       else
@@ -694,7 +755,9 @@ new_branch() {
   if [ "${branch_or_files}" = "${GIT_CHECKOUT_FILES}" ]; then
     printf 'false'
   else
-    local -r moved_here_how_many_times="$(git reflog | grep "checkout: moving from " | grep -c "to $(git branch --show-current)")"
+    local moved_here_how_many_times
+    moved_here_how_many_times="$(git reflog | grep "checkout: moving from " | grep -c "to $(git branch --show-current)")"
+    readonly moved_here_how_many_times
     if [ "${previous_sha}" = "${next_sha}" ] && [ "${moved_here_how_many_times}" = "1" ]; then
       printf 'true'
     else
@@ -728,29 +791,40 @@ run() {
   local spinner="${8:-true}"
   local buffer_time_override="${9:-}"
   local manually_called="${10:-false}"
+  local -r platforms_directory="${11:-"${GCMPB_LIB_DIR}/platforms"}"
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
   if [ "$(is_in_git_repo)" = "true" ]; then
-    local -r branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
+    local branches_or_files
+    branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
+    readonly branches_or_files
 
     if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
       interactive_rebase_in_progress=true
     fi
 
-    local -r ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
+    local ignore_cleaning_branches
+    ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
+    readonly ignore_cleaning_branches
 
     if [ "${ignore_cleaning_branches}" != "" ]; then
       printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
     fi
-    local -r should_run_on_first_move_to_newly_created_branch_result="$(should_run_on_first_move_to_newly_created_branch)"
-    local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" \
+    local should_run_on_first_move_to_newly_created_branch_result
+    should_run_on_first_move_to_newly_created_branch_result="$(should_run_on_first_move_to_newly_created_branch)"
+    readonly should_run_on_first_move_to_newly_created_branch_result
+    local should_run_result
+    should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" \
       "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" \
       "${should_run_on_first_move_to_newly_created_branch_result}" "${buffer_time_override}" "${manually_called}")"
+    readonly should_run_result
     local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
     local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
     if [ "${should_run_bool}" = "true" ]; then
-      clean_pr_merged_branches "$(get_branches "${ignore_cleaning_branches}")" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
+      local branches_to_check
+      branches_to_check="$(get_branches "${ignore_cleaning_branches}")"
+      clean_pr_merged_branches "${branches_to_check}" "${platforms_directory}" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
     else
       printverbose "${verbose}" "${should_not_run_reason}"
     fi

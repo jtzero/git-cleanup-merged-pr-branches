@@ -4,6 +4,7 @@ setup() {
   bats_load_library 'test_helper/bats-support' # this is required by bats-assert!
   bats_load_library 'test_helper/bats-assert'
   ROOT_DIR="$(dirname "${BATS_TEST_LIB}")"
+  TESTS_INTEGRATION_DIR="${BATS_TEST_LIB}/integration"
   PATH="${ROOT_DIR}/bin:$PATH"
 }
 
