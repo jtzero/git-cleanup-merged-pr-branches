@@ -367,6 +367,7 @@ decide() {
 
   # shellcheck source=/dev/null
   . "${platform_path}"
+  set -Eeuo pipefail
 
   local -r type_result="$(type pre_init_hook 2>&1)"
   if ! (printf '%s' "${type_result}" | grep -sq 'not found'); then

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -Eeuo pipefail
+
 AZ_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}/az"
 
 # shellcheck disable=SC2034

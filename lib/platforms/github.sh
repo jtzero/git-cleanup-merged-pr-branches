@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+if [ -z "${GCMPB_PLATFORMS_DIR:-}" ]; then
+  if [ -z "${BASH_SOURCE[0]:-}" ]; then
+    # zsh
+    GCMPB_PLATFORMS_DIR="${0:A:h}"
+    # shellcheck disable=SC2034
+    IS_ZSH=1
+  else
+    if ! command -v realpath >/dev/null 2>&1; then
+      exit 1
+    fi
+    GCMPB_PLATFORMS_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+    # shellcheck disable=SC2034
+    IS_BASH=1
+  fi
+fi
+
+GCMPB_LIB_DIR="$(dirname "${GCMPB_PLATFORMS_DIR}")"
+# shellcheck source=../cache.sh
+. "${GCMPB_LIB_DIR}/cache.sh"
 # shellcheck disable=SC2034
 COMPLETED_STATES=('MERGED' 'CLOSED')
 
