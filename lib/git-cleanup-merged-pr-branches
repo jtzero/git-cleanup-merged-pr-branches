@@ -4,6 +4,11 @@
 # TODO pass GCMPB_VERBOSE around instead of global
 
 set -Eeuo pipefail
+# TODO better way to handle this for now just skip to prevent issues
+if shopt | grep -q 'inherit_errexit'; then
+  shopt -s inherit_errexit
+fi
+
 if [ -z "${BASH_SOURCE[0]:-}" ]; then
   # zsh
   GCMPB_DIR="${0:A:h}"
