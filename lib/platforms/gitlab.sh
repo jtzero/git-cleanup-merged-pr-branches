@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
+#
+#
+set -Eeuo pipefail
 
 # shellcheck disable=SC2034
 COMPLETED_STATES=('merged' 'closed')
 
 GCMPB_GL_FILE_TOKEN="${GCMPB_GL_FILE_TOKEN:-''}"
+
+NEW_VERSION_STATEMENT="A new version of glab has been released|https://gitlab.com/gitlab-org/cli/-/releases/"
 
 get_cache_config() {
   local -r remote="${1}"
@@ -23,10 +28,10 @@ set_cache_config() {
 pre_init_hook() {
   local -r spinner_pid="${1}"
   local retore_spinner="false"
-  local -r has_errors="$(glab auth status 2>&1 | grep 'x')"
+  local -r has_errors="$(glab auth status 2>&1 | grep --color=always -Ev "${NEW_VERSION_STATEMENT}" | grep 'x')"
   if [ -n "${has_errors}" ]; then
     if [ -f "${GCMPB_GL_FILE_TOKEN}" ]; then
-      glab auth login --stdin <"${GCMPB_GL_FILE_TOKEN}" || exit 1
+      glab auth login --stdin <"${GCMPB_GL_FILE_TOKEN}" 2> >(grep --color=always -Ev "${NEW_VERSION_STATEMENT}" >&2) || exit 1
     else
       if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
         kill -TSTP "${spinner_pid}"
@@ -35,7 +40,7 @@ pre_init_hook() {
       (
         exec </dev/tty
         exec 1>&2
-        glab auth login || exit 1
+        glab auth login 2> >(grep --color=always -Ev "${NEW_VERSION_STATEMENT}" >&2) || exit 1
       ) || exit 1
       if [ "${retore_spinner}" = "true" ]; then
         kill -CONT "${spinner_pid}"
@@ -49,7 +54,7 @@ get_states() {
   local -r remote_with_branch="${1}"
   local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  glab api /projects/:id/merge_requests -Fsource_branch="${branch}" -X GET | jq -r '[.[] | {state: .state, id: .id, iid: .iid }]'
+  glab api /projects/:id/merge_requests -Fsource_branch="${branch}" -X GET 2> >(grep --color=always -Ev "${NEW_VERSION_STATEMENT}" >&2) | jq -r '[.[] | {state: .state, id: .id, iid: .iid }]'
 }
 
 get_any_open_states() {
@@ -77,7 +82,12 @@ branch_was_deleted_remotely() {
   local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
   load_cache "${remote}"
   if [ -z "${GL_DELETED_BRANCHES:-}" ]; then
-    GL_DELETED_BRANCHES="$(glab api /projects/:id/events | jq -r '[.[] | select(.action_name=="deleted" and .push_data.ref_type=="branch") | .push_data.ref]')"
+    GL_DELETED_BRANCHES="$(glab api /projects/:id/events 2> >(grep --color=always -Ev "${NEW_VERSION_STATEMENT}" >&2) | jq -r '[.[] | select(.action_name=="deleted" and .push_data.ref_type=="branch") | .push_data.ref]')"
   fi
   printf '%s' "${GL_DELETED_BRANCHES}" | jq '. | contains(["'"${branch}"'"])'
+}
+
+post_run_hook() {
+  # shellcheck disable=SC2260
+  glab >/dev/null
 }

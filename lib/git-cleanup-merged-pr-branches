@@ -247,6 +247,8 @@ clean_pr_merged_branches() {
   else
     kill_spinner_if_running "${spinner_pid}"
   fi
+  printf '\n'
+  post_run "${platform_path}"
 }
 
 print_menu() {
@@ -530,6 +532,16 @@ delete_branches() {
   local -r branches=("$@")
   # shellcheck disable=SC2068
   git branch -D ${branches[@]}
+}
+
+post_run() {
+  local -r platform_path="${1}"
+  #shellcheck source=/dev/null
+  . "${platform_path}"
+  local -r type_result="$(type post_run_hook 2>&1)"
+  if ! (printf '%s' "${type_result}" | grep -sq 'not found'); then
+    post_run_hook
+  fi
 }
 
 interactive_help() {
