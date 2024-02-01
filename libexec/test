@@ -1,4 +1,5 @@
-#!/usr/bin/env -S bash -l
+#!/usr/bin/env -S PATH="${PATH}" bash
+# pass along path in case you are using homebrew or the like
 
 set -Eeuo pipefail
 
