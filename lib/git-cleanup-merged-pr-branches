@@ -739,7 +739,7 @@ run() {
     if [ "${ignore_cleaning_branches}" != "" ]; then
       printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
     fi
-    local -r should_run_on_first_move_to_newly_created_branch_result="$("${manually_called}")"
+    local -r should_run_on_first_move_to_newly_created_branch_result="$(should_run_on_first_move_to_newly_created_branch)"
     local -r should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" \
       "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" \
       "${should_run_on_first_move_to_newly_created_branch_result}" "${buffer_time_override}" "${manually_called}")"
