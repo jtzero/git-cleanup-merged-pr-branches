@@ -44,6 +44,12 @@ build-container:
 bats-tests:
   stage: test
   image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
+  coverage: '/\(\d+.\d+\%\) covered/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/coverage.xml
   script:
     - . "${HOME}/.bashrc" && git checkout -b ci-integration-test && ./libexec/test
 

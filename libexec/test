@@ -17,6 +17,10 @@ OLDPWD="${PWD}"
 
 cd "${GCMPB_ROOT_DIR}" || exit 1
 
+if ! gem list -i "^simplecov-cobertura$" > /dev/null ; then
+  gem install bashcov simplecov-cobertura
+fi
+
 git config --global --add safe.directory "${GCMPB_ROOT_DIR}"
 git config --global --add safe.directory "${GCMPB_ROOT_DIR}/tests/test_helper/bats-assert"
 git config --global --add safe.directory "${GCMPB_ROOT_DIR}/tests/test_helper/bats-support"
@@ -34,7 +38,7 @@ if [ -n "${1:-}" ]; then
   set +x
 else
   set -x
-  bats -r ./tests/{unit,integration}/
+  bashcov --root "${GCMPB_ROOT_DIR}" -- bats -r ./tests/{unit,integration}/
   set +x
 fi
 
