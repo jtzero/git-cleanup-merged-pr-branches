@@ -26,12 +26,16 @@ setup() {
 @test "detect_pruneable" {
   git() {
     if [ "${2:-}" = "prune" ]; then
+      if [ "${3:-}" = "-n" ] && [ -z "${4:-}" ]; then
+        printf 'ERROR: No remote to prune specified.'
+        exit 1
+      fi
       printf '%s\n%s\n%s\n' 'Pruning origin' 'URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [would prune] origin/test-branch'
     elif [ "${2:-}" = "" ]; then
       printf '%s\n%s\n' 'origin' 'upstream'
     fi
   }
-  output="$(detect_pruneable)"
+  output="$(detect_pruneable 2>&1)"
   assert_output <<EOF
   'Pruning origin
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git

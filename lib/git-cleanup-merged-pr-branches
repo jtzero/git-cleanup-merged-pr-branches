@@ -202,13 +202,24 @@ kill_spinner_if_running() {
   fi
 }
 
+GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET=false
+GIT_PRUNE_REMOTE_RESPONSE_CACHE=''
 detect_pruneable() {
-  read -r -a pruneable_remotes <<<"$(git remote)"
-  if [ -n "${pruneable_remotes[*]}" ]; then
-    # shellcheck disable=SC2046
-    git remote prune -n "${pruneable_remotes[@]}"
+  if [ "${GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET}" = "false" ]; then
+    local all_remotes=()
+    while IFS= read -r line; do
+      all_remotes[${#all_remotes[@]}]="${line}"
+    done <<<"$(git remote | uniq)"
+    readonly all_remotes
+    if [ -n "${all_remotes[*]}" ]; then
+      GIT_PRUNE_REMOTE_RESPONSE_CACHE="$(git remote prune -n "${all_remotes[@]}")"
+    fi
+    readonly GIT_PRUNE_REMOTE_RESPONSE_CACHE
+    GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET=true
+    readonly GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET
+    printf '%s' "${GIT_PRUNE_REMOTE_RESPONSE_CACHE}"
   else
-    printf ''
+    printf '%s' "${GIT_PRUNE_REMOTE_RESPONSE_CACHE}"
   fi
 }
 
@@ -431,6 +442,8 @@ array_join() {
   fi
 }
 
+# TODO investigate what of this can be refactored and passed in
+# for multiple calls or cached
 ask() {
   local -r question="${1}"
   local -r force_interactive="${2:-true}"
@@ -510,16 +523,12 @@ apply_plan() {
   if [ "${#to_delete[@]}" -gt 0 ]; then
     delete_branches "$(echo "${to_delete[@]}" | tr "\n" " " | tr -s " ")"
   fi
-  local all_remotes
-  all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
-  readonly all_remotes
-  # shellcheck disable=SC2086
-  local -r pruneable
-  pruneable="$(git remote prune -n ${all_remotes})"
+  local pruneable
+  pruneable="$(detect_pruneable)"
   readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
-    for remote_name in ${all_remotes}; do
+    for remote_name in "${all_remotes[@]}"; do
       if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
         pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
@@ -547,16 +556,12 @@ apply_partial() {
       printverbose "${verbose}" "not deleting...${branch}"
     fi
   done
-  local all_remotes
-  all_remotes="$(git remote -v | cut -d$'\t' -f1 | uniq | tr $'\n' ' ')"
-  readonly all_remotes
-  # shellcheck disable=SC2086
   local pruneable
-  pruneable="$(git remote prune -n "${all_remotes}")"
+  pruneable="$(detect_pruneable)"
   readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
-    for remote_name in ${all_remotes}; do
+    for remote_name in "${all_remotes[@]}"; do
       if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
         pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
