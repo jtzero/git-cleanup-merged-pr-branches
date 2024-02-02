@@ -124,12 +124,63 @@ EOF
   skip
 }
 
-@test "apply_plan" {
-  skip
+@test "apply_plan_deleted_and_pruned" {
+  local current_branch_or_commit=''
+  local -r current_branch="$(git branch --show-current)"
+  if [ "${current_branch}" = "" ]; then
+    current_branch_or_commit="$(git rev-parse HEAD)"
+  else
+    current_branch_or_commit="${current_branch}"
+  fi
+  git checkout -b apply_plan_branch_test > /dev/null 2>&1 || true
+  git checkout "${current_branch_or_commit}" > /dev/null
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+  GIT_ALL_REMOTE_NAMES[1]='origin'
+  detect_pruneable() {
+    printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [would prune] origin/test-branch'
+  }
+  prune_tracking() {
+    printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [pruned] origin/test-branch'
+  }
+  apply_plan 'apply_plan_branch_test'
+EOF
+
+  assert_output --partial "Deleted branch apply_plan_branch_test"
+  assert_output --partial "pruning origin"
+  assert_output --partial "url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git"
+  assert_output --partial "* [pruned] origin/test-branch"
 }
 
-@test "apply_partial" {
-  skip
+@test "apply_partial_all_y_deleted_and_pruned" {
+  local current_branch_or_commit=''
+  local -r current_branch="$(git branch --show-current)"
+  if [ "${current_branch}" = "" ]; then
+    current_branch_or_commit="$(git rev-parse HEAD)"
+  else
+    current_branch_or_commit="${current_branch}"
+  fi
+  git checkout -b apply_plan_branch_test > /dev/null 2>&1 || true
+  git checkout "${current_branch_or_commit}" > /dev/null
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+  GIT_ALL_REMOTE_NAMES[1]='origin'
+  ask() {
+    printf 'y'
+  }
+  detect_pruneable() {
+    printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [would prune] origin/test-branch'
+  }
+  prune_tracking() {
+    printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [pruned] origin/test-branch'
+  }
+  apply_partial 'true' 'false' '|' 'apply_plan_branch_test'
+EOF
+
+  assert_output --partial "Deleted branch apply_plan_branch_test"
+  assert_output --partial "pruning origin"
+  assert_output --partial "url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git"
+  assert_output --partial "* [pruned] origin/test-branch"
 }
 
 @test "interactive_prune_tracking" {

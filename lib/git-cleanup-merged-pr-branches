@@ -202,17 +202,24 @@ kill_spinner_if_running() {
   fi
 }
 
+GIT_ALL_REMOTE_NAMES_SET=false
+GIT_ALL_REMOTE_NAMES=()
+set_get_all_remote_names() {
+  if [ "${GIT_ALL_REMOTE_NAMES_SET}" = "false" ]; then
+    while IFS= read -r line; do
+      GIT_ALL_REMOTE_NAMES[${#GIT_ALL_REMOTE_NAMES[@]}]="${line}"
+    done <<<"$(git remote | uniq)"
+    readonly GIT_ALL_REMOTE_NAMES
+  fi
+}
+
 GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET=false
 GIT_PRUNE_REMOTE_RESPONSE_CACHE=''
 detect_pruneable() {
   if [ "${GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET}" = "false" ]; then
-    local all_remotes=()
-    while IFS= read -r line; do
-      all_remotes[${#all_remotes[@]}]="${line}"
-    done <<<"$(git remote | uniq)"
-    readonly all_remotes
-    if [ -n "${all_remotes[*]}" ]; then
-      GIT_PRUNE_REMOTE_RESPONSE_CACHE="$(git remote prune -n "${all_remotes[@]}")"
+    set_get_all_remote_names
+    if [ -n "${GIT_ALL_REMOTE_NAMES[*]}" ]; then
+      GIT_PRUNE_REMOTE_RESPONSE_CACHE="$(git remote prune -n "${GIT_ALL_REMOTE_NAMES[@]}")"
     fi
     readonly GIT_PRUNE_REMOTE_RESPONSE_CACHE
     GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET=true
@@ -531,7 +538,8 @@ apply_plan() {
   readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
-    for remote_name in "${all_remotes[@]}"; do
+    set_get_all_remote_names
+    for remote_name in "${GIT_ALL_REMOTE_NAMES[@]}"; do
       if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
         pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
@@ -564,7 +572,8 @@ apply_partial() {
   readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
-    for remote_name in "${all_remotes[@]}"; do
+    set_get_all_remote_names
+    for remote_name in "${GIT_ALL_REMOTE_NAMES[@]}"; do
       if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
         pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
