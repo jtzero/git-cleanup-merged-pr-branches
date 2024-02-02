@@ -116,10 +116,11 @@ git remote -v
 git fetch --all
 
 set_up_hook "${ROOT_DIR}"
-prepare_testing_branch "integration-test" "${ROOT_DIR}"
 
 printf '\n=======START\n'
-printf 'currently on:\n%s' "$(git branch -vv)"
+git checkout -b ci-integration-test
+prepare_testing_branch "integration-test" "${ROOT_DIR}"
+printf 'currently on:%s\n' "$(git branch --show-current)"
 GCMPB_AUTO_APPLY=true GCMPB_DEBUG=true git checkout - 2>&1 | tee /tmp/result || true
 set +x
 result="$(</tmp/result)"

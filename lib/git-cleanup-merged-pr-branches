@@ -674,6 +674,14 @@ get_last_run_time() {
   (cache_file | grep 'last_ran_at=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
 }
 
+current_state_has_no_branch_name() {
+  if [ -z "$(git branch --show-current)" ]; then
+    printf 'true'
+  else
+    printf 'false'
+  fi
+}
+
 is_past_buffer_time() {
   local -r buffer_time_override="${1:-}"
   local last_run_time
@@ -721,6 +729,8 @@ should_run() {
     printf 'false:interactive_rebase_is_in_progress'
   elif [ "${manually_called}" = "true" ]; then
     printf 'true:manually_called'
+  elif [ "$(current_state_has_no_branch_name)" = "true" ]; then
+    printf 'false:current_state_has_no_branch_name'
   elif [ "${git_terminal_prompt_raw}" = "0" ]; then
     printf 'false:git_terminal_prompt_set_to_zero'
   elif [ "$(is_past_buffer_time "${buffer_time_override}")" = "false" ]; then
