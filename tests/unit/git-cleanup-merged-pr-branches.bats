@@ -1,11 +1,47 @@
 #!/usr/bin/env bats
 
+setup_file() {
+  local -r original_branch="$(git branch --show-current)"
+  if [ "${original_branch}" = "" ]; then
+    ORIGINALLY_DETACHED=true
+    ORIGINAL_BRANCH_OR_DETACHED_COMMIT="$(git rev-parse HEAD)"
+  else
+    ORIGINALLY_DETACHED=false
+    ORIGINAL_BRANCH_OR_DETACHED_COMMIT="${original_branch}"
+  fi
+  export ORIGINALLY_DETACHED
+  export ORIGINAL_BRANCH_OR_DETACHED_COMMIT
+}
+
 setup() {
   bats_load_library 'test_helper/bats-support' # this is required by bats-assert!
   bats_load_library 'test_helper/bats-assert'
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd)"
   ROOT_DIR="$(dirname "${BATS_TEST_LIB}")"
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+}
+
+ensure_int() {
+  reset_head_state
+  exit 1
+}
+
+reset_head_state() {
+  local current_branch
+  current_branch="$(git branch --show-current)"
+  if [ "${ORIGINALLY_DETACHED}" = "false" ]; then
+    if [ "${current_branch}" != "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" ]; then
+      git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
+    fi
+  elif [ "${ORIGINALLY_DETACHED}" = "true" ] && [ "${current_branch}" != "" ]; then
+    git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
+  fi
+}
+
+trap 'ensure_int' INT
+
+teardown() {
+  reset_head_state
 }
 
 @test "join_by" {
@@ -125,15 +161,10 @@ EOF
 }
 
 @test "apply_plan_deleted_and_pruned" {
-  local current_branch_or_commit=''
-  local -r current_branch="$(git branch --show-current)"
-  if [ "${current_branch}" = "" ]; then
-    current_branch_or_commit="$(git rev-parse HEAD)"
-  else
-    current_branch_or_commit="${current_branch}"
-  fi
-  git checkout -b apply_plan_branch_test > /dev/null 2>&1 || true
-  git checkout "${current_branch_or_commit}" > /dev/null
+local -r branch_name="apply_plan_deleted_and_pruned_test"
+  [ "$(git branch --show-current)" = "${branch_name}" ] && printf 'invalid setup\n' &&  exit 1
+  git checkout -b "${branch_name}" > /dev/null 2>&1 || true
+  git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
   run bash -s <<EOF
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
   GIT_ALL_REMOTE_NAMES[1]='origin'
@@ -143,25 +174,20 @@ EOF
   prune_tracking() {
     printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [pruned] origin/test-branch'
   }
-  apply_plan 'apply_plan_branch_test'
+  apply_plan '${branch_name}'
 EOF
 
-  assert_output --partial "Deleted branch apply_plan_branch_test"
+  assert_output --partial "Deleted branch ${branch_name}"
   assert_output --partial "pruning origin"
   assert_output --partial "url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git"
   assert_output --partial "* [pruned] origin/test-branch"
 }
 
 @test "apply_partial_all_y_deleted_and_pruned" {
-  local current_branch_or_commit=''
-  local -r current_branch="$(git branch --show-current)"
-  if [ "${current_branch}" = "" ]; then
-    current_branch_or_commit="$(git rev-parse HEAD)"
-  else
-    current_branch_or_commit="${current_branch}"
-  fi
-  git checkout -b apply_plan_branch_test > /dev/null 2>&1 || true
-  git checkout "${current_branch_or_commit}" > /dev/null
+  local -r branch_name="apply_partial_all_y_deleted_and_pruned_test"
+  [ "$(git branch --show-current)" = "${branch_name}" ] && printf 'invalid setup\n' &&  exit 1
+  git checkout -b "${branch_name}" > /dev/null 2>&1 || true
+  git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
   run bash -s <<EOF
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
   GIT_ALL_REMOTE_NAMES[1]='origin'
@@ -174,10 +200,10 @@ EOF
   prune_tracking() {
     printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [pruned] origin/test-branch'
   }
-  apply_partial 'true' 'false' '|' 'apply_plan_branch_test'
+  apply_partial 'true' 'false' '|' '${branch_name}'
 EOF
 
-  assert_output --partial "Deleted branch apply_plan_branch_test"
+  assert_output --partial "Deleted branch ${branch_name}"
   assert_output --partial "pruning origin"
   assert_output --partial "url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git"
   assert_output --partial "* [pruned] origin/test-branch"
@@ -323,35 +349,41 @@ EOF
 }
 
 @test "new_branch_returns_true_when_branch_moved_to_for_the_first_time" {
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
   git() {
-    local arg="${1:-}"
-    local second_arg="${2:-}"
-    if [ "${arg}" = "reflog" ]; then
+    local arg="\${1:-}"
+    local second_arg="\${2:-}"
+    if [ "\${arg}" = "reflog" ]; then
       printf '5751447 (new-branch, main) HEAD@{10}: checkout: moving from main to new-branch'
-    elif [ "${arg}" = "branch" ] && [ "${second_arg}" = "--show-current" ]; then
+    elif [ "\${arg}" = "branch" ] && [ "\${second_arg}" = "--show-current" ]; then
       printf 'new-branch'
     else
-      git "$@"
+      git "\$@"
     fi
   }
-  output="$(new_branch "BRANCHES" "asdfqwer" "asdfqwer")"
+  new_branch "BRANCHES" "asdfqwer" "asdfqwer"
+EOF
   expected="true"
   assert_output "${expected}"
 }
 
 @test "new_branch_returns_false_when_branch_moved_to_after_the_first_time" {
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
   git() {
-    local arg="${1:-}"
-    local second_arg="${2:-}"
-    if [ "${arg}" = "reflog" ]; then
+    local arg="\${1:-}"
+    local second_arg="\${2:-}"
+    if [ "\${arg}" = "reflog" ]; then
       printf '%s\n%s\n' '5751447 (new-branch, main) HEAD@{10}: checkout: moving from main to new-branch' '5751447 (new-branch, main) HEAD@{10}: checkout: moving from main to new-branch'
-    elif [ "${arg}" = "branch" ] && [ "${second_arg}" = "--show-current" ]; then
+    elif [ "\${arg}" = "branch" ] && [ "\${second_arg}" = "--show-current" ]; then
       printf 'new-branch'
     else
-      git "$@"
+      git "\$@"
     fi
   }
-  output="$(new_branch "BRANCHES" "asdfqwer" "asdfqwer")"
+  new_branch "BRANCHES" "asdfqwer" "asdfqwer"
+EOF
   expected="false"
   assert_output "${expected}"
 }
