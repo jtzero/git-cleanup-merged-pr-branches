@@ -478,7 +478,9 @@ apply_plan() {
         pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
     done
-    prune_tracking "${pruneable_remotes[*]}"
+    if [ "${#pruneable_remotes[@]}" -gt 0 ]; then
+      prune_tracking "${pruneable_remotes[*]}"
+    fi
   fi
 }
 
@@ -508,7 +510,9 @@ apply_partial() {
         pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
       fi
     done
-    interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}" "${force_interactive}"
+    if [ "${#pruneable_remotes[@]}" -gt 0 ]; then
+      interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}" "${force_interactive}"
+    fi
   fi
 }
 
