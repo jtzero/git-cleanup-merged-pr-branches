@@ -23,6 +23,16 @@ setup() {
   assert_output 'found:boatbin'
 }
 
+@test "exit_if_platform_not_found_found_result" {
+  run exit_if_platform_not_found 'found:github' '${ROOT_DIR}/git-cleanup-merged-pr-branches/platforms' ''
+  assert_success 0
+}
+
+@test "exit_if_platform_not_found_not_found_result" {
+  run exit_if_platform_not_found 'not_found:platform not found from `git remote -v` github|azure|gitlab' '${ROOT_DIR}/git-cleanup-merged-pr-branches/platforms' ''
+  assert_failure 22
+}
+
 @test "detect_pruneable" {
   git() {
     if [ "${2:-}" = "prune" ]; then
@@ -86,14 +96,6 @@ EOF
 @test "available_platforms" {
   output="$(available_platforms "${DIR}/fixtures/platforms/")"
   assert_output "azure|gitlab"
-}
-
-@test "decide_remote_group" {
-  decide() {
-    printf '%s' 'doit'
-  }
-  output="$(decide_remote_group "${DIR}/fixtures/platforms/gitlab.sh" "origin" "1111" "true")"
-  assert_output "ZG9pdA=="
 }
 
 @test "decide_print" {
@@ -167,6 +169,47 @@ EOF
   prune_tracking "${remotes_to_prune[*]}"
   assert_output 'remote prune origin upstream'
 }
+
+@test "get_decision_on_branch_with_pr_with_open_states" {
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+  get_any_open_states() {
+    printf 'true'
+  }
+  get_decision_on_branch_with_pr 'local-branch' 'remote-branch' '[{"state": "OPEN", "id": 11111 }]'
+EOF
+  assert_output 'skip:local-branch:local-branch->remote-branch has open pr'"'"'s, not deleting:[{"state": "OPEN", "id": 11111 }]'
+}
+
+@test "get_decision_on_branch_with_pr_with_no_open_states_and_completed" {
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+  get_any_open_states() {
+    printf 'false'
+  }
+  get_only_completed() {
+    printf 'true'
+  }
+  get_decision_on_branch_with_pr 'local-branch' 'remote-branch' '[{"state": "MERGED", "id": 11111 }]'
+EOF
+  assert_output 'delete:local-branch:local-branch->remote-branch had a pr that completed:[{"state": "MERGED", "id": 11111 }]'
+}
+
+@test "get_decision_on_branch_with_pr_with_no_open_states_and_no_completed" {
+  run bash -s <<EOF
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+  COMPLETED_STATES='MERGED'
+  get_any_open_states() {
+    printf 'false'
+  }
+  get_only_completed() {
+    printf 'false'
+  }
+  get_decision_on_branch_with_pr 'local-branch' 'remote-branch' '[{"state": "unknown", "id": 11111 }]'
+EOF
+  assert_output 'skip:local-branch:local-branch->remote-branch has a pr that is not marked as MERGED, not deleting:[{"state": "unknown", "id": 11111 }]'
+}
+
 
 @test "delete_branches" {
   git() {

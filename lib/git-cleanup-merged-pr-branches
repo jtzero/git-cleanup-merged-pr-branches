@@ -223,6 +223,21 @@ detect_pruneable() {
   fi
 }
 
+exit_if_platform_not_found() {
+  local platform_query_result="${1}"
+  local platforms_directory="${2}"
+  local spinner_pid="${3}"
+  local platform platform_query_discrete
+  platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
+  platform_query_discrete="$(cut -d':' -f1 <<<"${platform_query_result}")"
+  readonly platform platform_query_discrete
+  if [ "${platform_query_discrete}" = "not_found" ]; then
+    kill_spinner_if_running "${spinner_pid}"
+    printf '%s\n%s' "${platform} in ${platforms_directory}/" "$(ls "${platforms_directory}/")"
+    exit 22
+  fi
+}
+
 clean_pr_merged_branches() {
   local branches_to_check="${1}"
   local -r platforms_directory="${2}"
@@ -251,24 +266,25 @@ clean_pr_merged_branches() {
     remote_group="$(printf '%s' "${branches_to_check}" | grep "^${remote_name}")"
     platform_query_result="$(query_vcs_platform "${remote_name}" "${platforms_available}")"
 
-    platform_query_discrete="$(cut -d':' -f1 <<<"${platform_query_result}")"
-    if [ "${platform_query_discrete}" = "not_found" ]; then
-      kill_spinner_if_running "${spinner_pid}"
-      printf '%s\n%s' "${platform} in ${platforms_directory}/" "$(ls "${platforms_directory}/")"
-      exit 22
-    fi
-
     platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
+    exit_if_platform_not_found "${platform_query_result}" "${platforms_directory}" "${spinner_pid}"
+
     local platform_path="${platforms_directory}/${platform}.sh"
     platform_paths[${#platform_paths[@]}]="${platform_path}"
     if [ "${platform_loaded}" != "${platform}" ]; then
       platform_loaded="${platform}"
     fi
 
-    decisions="$(decide_remote_group "${platform_path}" "${remote_group}" "${spinner_pid}" "${verbose}")"
-    for base64_decision in ${decisions}; do
-      local decision='' local_branch=''
-      decision="$(base64 -d <<<"${base64_decision}")"
+    local decisions=()
+    for remote_branch_and_local_branch in $remote_group; do
+      local remote_branch='' local_branch=''
+      remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
+      local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
+
+      decisions["${#decisions[@]}"]="$(decide "${local_branch}" "${remote_branch}" "${platform_path}" "${spinner_pid}" "${verbose}")"
+    done
+    for decision in "${decisions[@]}"; do
+      local local_branch=''
       local_branch="$(printf '%s' "${decision}" | cut -d':' -f2 -z | tr -d '\0')"
       printverbose "${verbose}" "${decision}"
       decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
@@ -335,29 +351,15 @@ DECIDE_DELETE='delete'
 DECIDE_WARNING_DELETED_ON_REMOTE='warning_deleted_on_remote'
 DECIDE_SKIP='skip'
 
-decide_remote_group() {
-  local platform_path="${1}"
-  local remote_group="${2}"
-  local spinner_pid="${3}"
-  local verbose="${4}"
-  #shellcheck source=/dev/null
-  . "${platform_path}"
-
-  for remote_branch_and_local_branch in $remote_group; do
-    local remote_branch='' local_branch='' decided=''
-    remote_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f1)"
-    local_branch="$(echo "${remote_branch_and_local_branch}" | cut -d':' -f2)"
-
-    decided="$(decide "${local_branch}" "${remote_branch}" "${spinner_pid}" "${verbose}")"
-    printf '%s\n' "$(printf '%s' "${decided}" | base64 -w 0)"
-  done
-}
-
 decide() {
   local -r local_branch="${1}"
   local -r remote_branch="${2}"
-  local -r spinner_pid="${3}"
-  local -r verbose="${4:-false}"
+  local -r platform_path="${3}"
+  local -r spinner_pid="${4}"
+  local -r verbose="${5:-false}"
+
+  # shellcheck source=/dev/null
+  . "${platform_path}"
 
   local -r type_result="$(type pre_init_hook 2>&1)"
   if ! (printf '%s' "${type_result}" | grep -sq 'not found'); then
@@ -398,6 +400,7 @@ get_decision_on_branch_with_pr() {
   local -r remote_branch="${2}"
   local -r states="${3}"
 
+  # TODO rename get_ -> has_
   local any_open_statuses
   any_open_statuses="$(get_any_open_states "${states}")"
   readonly any_open_statuses
