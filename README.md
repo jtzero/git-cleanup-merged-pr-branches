@@ -11,13 +11,13 @@
       - https://cli.github.com/
       - https://learn.microsoft.com/en-us/cli/azure/install-azure-cli & `az extension add --name azure-devops`
   1. gnu-coreutils >= 8.32
-  1. git >= 2.22.0
+  1. git >= 2.40.0
   1. jq ~> 1.6
   - [additional-info](./DEPENDENCIES.md)
 
 
   ## Install as only post-checkout git hook
-  ### Steps  
+  ### Steps
   1. clone repo and set up git hooks and set gcmpb as the post-checkout hook
       ```bash
       git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${XDG_DATA_HOME:-${HOME}/.local/share}/git-cleanup-merged-pr-branches" --branch stable \
