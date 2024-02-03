@@ -31,10 +31,10 @@ reset_head_state() {
   current_branch="$(git branch --show-current)"
   if [ "${ORIGINALLY_DETACHED}" = "false" ]; then
     if [ "${current_branch}" != "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" ]; then
-      git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
+      git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" >/dev/null
     fi
   elif [ "${ORIGINALLY_DETACHED}" = "true" ] && [ "${current_branch}" != "" ]; then
-    git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
+    git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" >/dev/null
   fi
 }
 
@@ -161,10 +161,10 @@ EOF
 }
 
 @test "apply_plan_deleted_and_pruned" {
-local -r branch_name="apply_plan_deleted_and_pruned_test"
-  [ "$(git branch --show-current)" = "${branch_name}" ] && printf 'invalid setup\n' &&  exit 1
-  git checkout -b "${branch_name}" > /dev/null 2>&1 || true
-  git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
+  local -r branch_name="apply_plan_deleted_and_pruned_test"
+  [ "$(git branch --show-current)" = "${branch_name}" ] && printf 'invalid setup\n' && exit 1
+  git checkout -b "${branch_name}" >/dev/null 2>&1 || true
+  git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" >/dev/null
   run bash -s <<EOF
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
   GIT_ALL_REMOTE_NAMES[1]='origin'
@@ -185,9 +185,9 @@ EOF
 
 @test "apply_partial_all_y_deleted_and_pruned" {
   local -r branch_name="apply_partial_all_y_deleted_and_pruned_test"
-  [ "$(git branch --show-current)" = "${branch_name}" ] && printf 'invalid setup\n' &&  exit 1
-  git checkout -b "${branch_name}" > /dev/null 2>&1 || true
-  git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" > /dev/null
+  [ "$(git branch --show-current)" = "${branch_name}" ] && printf 'invalid setup\n' && exit 1
+  git checkout -b "${branch_name}" >/dev/null 2>&1 || true
+  git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" >/dev/null
   run bash -s <<EOF
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
   GIT_ALL_REMOTE_NAMES[1]='origin'
@@ -286,7 +286,6 @@ EOF
 EOF
   assert_output 'skip:local-branch:local-branch->remote-branch has a pr that is not marked as MERGED, not deleting:[{"state": "unknown", "id": 11111 }]'
 }
-
 
 @test "delete_branches" {
   git() {

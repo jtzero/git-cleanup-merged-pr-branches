@@ -32,6 +32,9 @@ RED=$'\e[0;31m'
 YELLOW=$'\e[1;33m'
 CLEAR_COLOR=$'\e[0m'
 
+# shellcheck source=./cache.sh
+. "${GCMPB_LIB_DIR}/cache.sh"
+
 printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 printverbose() {
   local verbose="${1}"
@@ -676,10 +679,11 @@ cache_file() {
 }
 
 save_current_run_time_to_cache() {
-  local filepath
+  local filepath other_lines
   filepath="$(cache_filepath)"
-  readonly filepath
-  printf '%s' "$(cache_file | grep -v 'last_ran_at=' || [[ $? == 1 ]])" >"${filepath}"
+  other_lines="$(cache_file | grep -v 'last_ran_at=' || [[ $? == 1 ]])"
+  readonly other_lines filepath
+  printf '%s\n' "${other_lines}" >"${filepath}"
   printf 'last_ran_at=%s\n' "$(date +%s)" >>"${filepath}"
 }
 
