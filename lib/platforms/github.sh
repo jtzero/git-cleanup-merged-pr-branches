@@ -41,12 +41,10 @@ get_states() {
   local -r remote_with_branch="${1}"
   local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  local -r owner_and_repo="$(git remote get-url --push "${remote}" | cut -d':' -f2 | cut -d'.' -f1)"
+  local owner_and_repo
+  owner_and_repo="$(git remote get-url --push "${remote}" | cut -d':' -f2 | cut -d'.' -f1)"
+  readonly owner_and_repo
   gh pr list -R "${owner_and_repo}" --head "${branch}" --state all --json state,id
-  local exit_code=$?
-  if [ "${exit_code}" != "0" ]; then
-    exit ${exit_code}
-  fi
 }
 
 get_any_open_states() {
