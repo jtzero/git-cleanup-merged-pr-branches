@@ -40,7 +40,7 @@ pre_init_hook() {
       (
         exec </dev/tty
         exec 1>&2
-        glab auth login 2> >(grep --color=always -Ev "${NEW_VERSION_STATEMENT}" >&2) || exit 1
+        glab auth login || exit 1
       ) || exit 1
       if [ "${retore_spinner}" = "true" ]; then
         kill -CONT "${spinner_pid}"
