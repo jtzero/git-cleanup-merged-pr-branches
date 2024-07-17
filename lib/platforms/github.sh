@@ -90,7 +90,6 @@ user_has_pr_access() {
 pre_init_hook() {
   local -r spinner_pid="${1}"
   local retore_spinner="false"
-  set -x
   gh_auth_status
   if [ "${GH_AUTH_LOGGED_IN_STATE}" = 'logged_in' ]; then
     user_has_pr_access
