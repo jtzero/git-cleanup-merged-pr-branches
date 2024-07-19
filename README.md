@@ -16,7 +16,7 @@
   - [additional-info](./DEPENDENCIES.md)
 
 
-  ## Install as only post-checkout git hook
+  ## Install globally as exclusive post-checkout git hook
   ### Steps
   1. clone repo and set up git hooks and set gcmpb as the post-checkout hook
       ```bash
@@ -26,7 +26,7 @@
       && ln -nfs "${XDG_DATA_HOME:-${HOME}/.local/share}/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${HOME}/.git-hooks/post-checkout"
       ```
 
-  ## Install as extendable post-checkout hook
+  ## Install globally as extendable post-checkout hook
   ### Steps
   1. ensure `git-cleanup-merged-pr-branches-git-hook` is in your PATH varaible
   1. clone repo and set up git hooks
@@ -38,6 +38,15 @@
   1. copy the templates/custom-post-checkout-hook and past it into ~/.git-hooks/post-checkout
   1. `chmod +x ~/.git-hooks/post-checkout`
   1. modify below `# other things`
+
+  ## Install locally git hook
+  ### Steps
+  1. cd into repo you want to add this as a hook to
+  1. clone repo and set post-checkout to gcmpb
+      ```bash
+      git clone git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git "${XDG_DATA_HOME:-${HOME}/.local/share}/git-cleanup-merged-pr-branches" --branch stable \
+      && ln -nfs "${XDG_DATA_HOME:-${HOME}/.local/share}/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "./.git/hooks/post-checkout"
+      ```
 
 # Usage as post-checkout hook with first time log in
 - The first time you use the hook it will ask you to log in to the respective VCS server.
