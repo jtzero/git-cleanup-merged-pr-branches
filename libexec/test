@@ -47,7 +47,7 @@ elif [ -n "${1:-}" ]; then
   set +x
 else
   set -x
-  bats -r ./tests/{unit,integration}/
+  bats --print-output-on-failure --verbose-run -r ./tests/{unit,integration}/
   set +x
 fi
 

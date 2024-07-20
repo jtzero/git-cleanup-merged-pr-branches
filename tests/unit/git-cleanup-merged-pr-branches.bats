@@ -190,9 +190,8 @@ EOF
   prune_tracking() {
     printf '%s\n%s\n%s\n' 'pruning origin' 'url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git' ' * [pruned] origin/test-branch'
   }
-  apply_partial 'true' 'false' '|' '${branch_name}'
+  apply_partial 'true' 'false' '${branch_name}' '' ''
 EOF
-
   assert_output --partial "Deleted branch ${branch_name}"
   assert_output --partial "pruning origin"
   assert_output --partial "url: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git"

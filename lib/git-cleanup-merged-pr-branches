@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# reqs: realpath=="(GNU coreutils) 9.4" base64=="(GNU coreutils) 9.4"
+# reqs: realpath=="(GNU coreutils) 9.4" base64=="(GNU coreutils) 9.4" tac=="(GNU coreutils) 9.4"
 # TODO pass GCMPB_VERBOSE around instead of global
 
 set -Eeuo pipefail
@@ -34,6 +34,7 @@ CLEAR_COLOR=$'\e[0m'
 
 # shellcheck source=./cache.sh
 . "${GCMPB_LIB_DIR}/cache.sh"
+. "${GCMPB_LIB_DIR}/stash.sh"
 
 printerr() { printf "\033[0;31m%s\033[0m\n" "$*" >&2; }
 printverbose() {
@@ -254,8 +255,7 @@ clean_pr_merged_branches() {
   local auto_apply="${3:-false}"
   local verbose="${4:-}"
   local spinner="${5:-true}"
-  # TODO rename to to_delete
-  local toDelete=()
+  local to_delete=()
   local dangling=()
   local platforms_available
   local platform_paths=()
@@ -265,7 +265,7 @@ clean_pr_merged_branches() {
   if [ "${spinner}" = "true" ]; then
     (
       set +x
-      spin 'checking for dead branches'
+      spin 'checking for dead things...'
     ) &
     spinner_pid=$!
     # shellcheck disable=SC2064
@@ -299,7 +299,7 @@ clean_pr_merged_branches() {
       printverbose "${verbose}" "${decision}"
       decision_command="$(printf '%s' "${decision}" | cut -d':' -f1 -z | tr -d '\0')"
       if [ "${decision_command}" = "${DECIDE_DELETE}" ]; then
-        toDelete[${#toDelete[@]}]="${local_branch}"
+        to_delete[${#to_delete[@]}]="${local_branch}"
 
       elif [ "${decision_command}" = "${DECIDE_WARNING_DELETED_ON_REMOTE}" ]; then
         dangling[${#dangling[@]}]="${local_branch}"
@@ -311,10 +311,17 @@ clean_pr_merged_branches() {
   pruneable="$(detect_pruneable)"
   readonly pruneable
 
-  if [ ${#toDelete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ]; then
+  local orphaned_stashes
+  orphaned_stashes="$(get_orphaned_stashes)"
+  readonly orphaned_stashes
+
+  if [ ${#to_delete[@]} -gt 0 ] || [ ${#dangling[@]} -gt 0 ] || [ -n "${pruneable}" ] || [ -n "${orphaned_stashes}" ]; then
     kill_spinner_if_running "${spinner_pid}"
-    print_menu "${pruneable}" "${toDelete[@]}" "|" "${dangling[@]}"
-    handle_plan "${auto_apply}" "${force_interactive}" "${toDelete[@]}" "|" "${dangling[@]}"
+    local to_delete_arg="" dangling_arg=""
+    to_delete_arg="$(array_join $'\n' "${to_delete[@]}")"
+    dangling_arg="$(array_join $'\n' "${dangling[@]}")"
+    print_menu "${pruneable}" "${to_delete_arg}" "${dangling_arg}" "${orphaned_stashes}"
+    handle_plan "${auto_apply}" "${force_interactive}" "${to_delete_arg}" "${dangling_arg}" "${orphaned_stashes}"
   else
     kill_spinner_if_running "${spinner_pid}"
   fi
@@ -326,22 +333,22 @@ clean_pr_merged_branches() {
 
 print_menu() {
   local -r pruneable="${1}"
-  local items=("${@:2}")
-  local index=0
-  for item in "${items[@]}"; do
-    if [ "${item}" == "|" ]; then
-      break
-    fi
-    ((++index))
-  done
-
+  local -r to_delete="${2}"
+  local dangling
+  dangling="${3}"
+  local -r orphaned_stashes="${4}"
+  local to_delete_index=0 dangling_index=0 orphaned_index=0
   printf '\n%s\n' '==='
-  if [ ${#toDelete[@]} -gt 0 ]; then
-    printf '%s\n' "${RED}The following had PR's and can be deleted"
-    printf '%s' "- "
-    array_join '\n- ' "${toDelete[@]}"
-    printf '\n'
-  else
+  while IFS= read -r line; do
+    if [ -n "${line}" ]; then
+      if [ "${to_delete_index}" = "0" ]; then
+        printf '%s\n' "${RED}The following had PR's and can be deleted"
+      fi
+      printf '%s\n' "- ${line}"
+      ((++to_delete_index))
+    fi
+  done <<<"${to_delete}"
+  if [ "${to_delete_index}" = "0" ]; then
     printf '%s\n' "${RED}Did not find any branches with already merged/closed PRs"
   fi
   if [ -n "${pruneable}" ]; then
@@ -349,12 +356,26 @@ print_menu() {
     printf '%s\n' "${pruneable}" | grep -E '^\s\*'
   fi
   printf '%s' "${CLEAR_COLOR}"
-  if [ ${#dangling[@]} -gt 0 ]; then
-    printf '%s\n' "${YELLOW}The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
-    printf '%s' '~ '
-    array_join '\n~ ' "${dangling[@]}"
-    printf '%s\n' "${CLEAR_COLOR}"
-  fi
+  while IFS= read -r line; do
+    if [ -n "${line}" ]; then
+      if [ "${dangling_index}" = "0" ]; then
+        printf '%s\n' "${YELLOW}The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
+      fi
+      printf '%s\n' "- ${line}"
+      ((++dangling_index))
+    fi
+  done <<<"${dangling}"
+  printf '%s' "${CLEAR_COLOR}"
+  while IFS= read -r line; do
+    if [ -n "${line}" ]; then
+      if [ "${orphaned_index}" = "0" ]; then
+        printf '%s\n' "${YELLOW}The following stashes don't have a corresponding branch and will only be deleted if 'i' is entered"
+      fi
+      printf '%s\n' "- ${line}"
+      ((++orphaned_index))
+    fi
+  done <<<"${orphaned_stashes}"
+  printf '%s' "${CLEAR_COLOR}"
 }
 
 DECIDE_DELETE='delete'
@@ -452,7 +473,7 @@ array_join() {
       ((++index))
     done
   else
-    printf '%s' "${array[0]}"
+    printf '%s' "${array[@]}"
   fi
 }
 
@@ -494,17 +515,9 @@ ask() {
 handle_plan() {
   local -r auto_apply="${1}"
   local -r force_interactive="${2}"
-  local items=("${@:3}")
-  local index=0
-  for item in "${items[@]}"; do
-    if [ "${item}" == "|" ]; then
-      break
-    fi
-    ((++index))
-  done
-
-  local -r plan_to_delete=("${items[@]:0:$index}")
-  local -r dangling=("${items[@]:$(($index + 1))}")
+  local -r to_delete_delimited="${3}"
+  local -r dangling_delimited="${4}"
+  local -r orphaned_stashes_delimited="${5}"
 
   local apply='_'
   local -r verbose="${GCMPB_VERBOSE:-}"
@@ -523,20 +536,36 @@ handle_plan() {
     apply='n'
   fi
 
+  local legacy_to_delete="$(printf '%s' "${to_delete_delimited}" | tr "\n" " " | tr -s " ")"
+  if [ "${legacy_to_delete}" = ' ' ]; then
+    legacy_to_delete=''
+  fi
+  local legacy_i="$(printf '%s' "${to_delete_delimited}" "${dangling_delimited}" | tr "\n" " " | tr -s " ")"
+  if [ "${legacy_i}" = ' ' ]; then
+    legacy_i=''
+  fi
   if [ "${apply}" = "y" ]; then
-    apply_plan "${plan_to_delete[@]}"
+    apply_plan "${legacy_to_delete}"
   elif [ "${apply}" = "i" ]; then
-    delete_branches "$(echo "${plan_to_delete[@]}" "${dangling[@]}" | tr "\n" " " | tr -s " ")"
+    if [ -n "${legacy_i}" ]; then
+      delete_branches "${legacy_i}"
+    fi
+    delete_pruneable
+    delete_stashes_from_lines "${orphaned_stashes_delimited}"
   elif [ "${apply}" = "p" ]; then
-    apply_partial "${verbose}" "${force_interactive}" "${items[@]}"
+    apply_partial "${verbose}" "${force_interactive}" "${to_delete_delimited}" "${dangling_delimited}" "${orphaned_stashes_delimited}"
   fi
 }
 
 apply_plan() {
   local to_delete=("${@}")
-  if [ "${#to_delete[@]}" -gt 0 ]; then
-    delete_branches "$(echo "${to_delete[@]}" | tr "\n" " " | tr -s " ")"
+  if [ "${#to_delete[@]}" -gt 0 ] && [[ ! "${to_delete[*]}" =~ ^[[:space:]]*$ ]]; then
+    delete_branches "${to_delete[@]}"
   fi
+  delete_pruneable
+}
+
+delete_pruneable() {
   local pruneable
   pruneable="$(detect_pruneable)"
   readonly pruneable
@@ -555,22 +584,25 @@ apply_plan() {
 }
 
 apply_partial() {
-  local -r verbose="${1}"
-  local -r force_interactive="${2}"
-  local -r items=("${@:3}")
+  local verbose="${1}"
+  local force_interactive="${2}"
+  local to_delete
+  to_delete="${3}"
+  local dangling="${4}"
+  local orphaned_stashes="${5}"
+  readonly verbose force_interactive to_delete dangling orphaned_stashes
 
-  for branch in "${items[@]}"; do
-    if [ "${branch}" = "|" ]; then
-      continue
+  while IFS= read -r branch; do
+    if [ -n "${branch}" ]; then
+      local should_delete
+      should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
+      if [ "${should_delete}" = "y" ]; then
+        delete_branches "${branch}"
+      else
+        printverbose "${verbose}" "not deleting...${branch}"
+      fi
     fi
-    local should_delete
-    should_delete="$(ask "${branch}:delete? (y/n)" "${force_interactive}")"
-    if [ "${should_delete}" = "y" ]; then
-      delete_branches "${branch}"
-    else
-      printverbose "${verbose}" "not deleting...${branch}"
-    fi
-  done
+  done <<<"${to_delete}"$'\n'"${dangling}"
   local pruneable
   pruneable="$(detect_pruneable)"
   readonly pruneable
@@ -586,6 +618,21 @@ apply_partial() {
       interactive_prune_tracking "${verbose}" "${force_interactive}" "${pruneable_remotes[@]}"
     fi
   fi
+  while IFS= read -r stash; do
+    local response
+    response="$(ask "${stash}:delete? (y/n/p)" "${force_interactive}")"
+    local stash_no
+    stash_no="$(stash_number_from_message "${stash}")"
+    if [ "${response}" = "p" ]; then
+      stash_diff "${stash_no}"
+      response="$(ask "${stash}:delete? (y/n)" "${force_interactive}")"
+    fi
+    if [ "${response}" = "y" ]; then
+      delete_stashes "${stash_no}"
+    else
+      printverbose "${verbose}" "not deleting...${stash}"
+    fi
+  done <<<"${orphaned_stashes}"
 }
 
 interactive_prune_tracking() {
@@ -630,7 +677,7 @@ interactive_help() {
   Interactive options: (case sensitive)
       y: yes
       n: no
-      i: include dangling
+      i: include dangling, stashes
       p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p
     h,?: print this help
 EOS
