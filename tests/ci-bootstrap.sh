@@ -90,13 +90,13 @@ printf '\n=======SETUP\n'
 export GCMPB_BUFFER_SECONDS="0"
 
 ROOT_DIR="${PWD}"
+exec 7>/dev/stdout
+export BASH_XTRACEFD=7
 
 set_up_asdf "${ROOT_DIR}"
 
 standardize_git_repo "${ROOT_DIR}"
 
-exec 7>"${ROOT_DIR}/tmp/set-output.log"
-export BASH_XTRACEFD=7
 set -x
 
 #DEBUG
@@ -117,17 +117,23 @@ git fetch --all
 
 set_up_hook "${ROOT_DIR}"
 
-printf '\n=======START\n'
+printf '=======SETUP_END\n'
+printf '=======BEFORE_COMMAND\n'
 git checkout -b ci-integration-test
-prepare_testing_branch "integration-test" "${ROOT_DIR}"
-printf 'currently on:%s\n' "$(git branch --show-current)"
+BRANCH_TO_BE_DELETED="integration-test"
+prepare_testing_branch "${BRANCH_TO_BE_DELETED}" "${ROOT_DIR}"
+printf '=======DEBUG_BEFORE_COMMAND_END\n'
+SET_X_RUNNING_COMMAND_LOG="${ROOT_DIR}/tmp/running-command-output.log"
+exec 7>"${SET_X_RUNNING_COMMAND_LOG}"
+printf '\n=======RUNNING ON HOOK\n'
 GCMPB_AUTO_APPLY=true GCMPB_DEBUG=true git checkout - 2>&1 | tee /tmp/result || true
 set +x
 result="$(</tmp/result)"
-printf '\n=======DEBUG\n%s' "$(<tmp/set-output.log)"
+printf '\n=======DEBUG_RUNNING_ON_HOOK\n%s\n=======DEBUG_RUNNING_ON_HOOK_END\n' "$(<"${SET_X_RUNNING_COMMAND_LOG}")"
+printf '\n=======HOOK_RESULT\n%s\n=======HOOK_RESULT_END\n' "${result}"
 if [[ "${result}" == *"Deleted branch integration-test"* ]]; then
   printf "%s\n" "success!"
 else
-  printerr "Checkout did not ask to delete the branch ${result}"
+  printerr "Checkout did delete the branch:'${BRANCH_TO_BE_DELETED}'"
   exit 2
 fi
