@@ -28,7 +28,17 @@ cd "${GCMPB_ROOT_DIR}" || exit 1
 export BATS_LIB_PATH="${TESTS_DIR}${BATS_LIB_PATH:+":${BATS_LIB_PATH}"}"
 export BATS_TEST_LIB="${TESTS_DIR}"
 
-if [ -n "${1:-}" ]; then
+if [ "${1:-}" = "debug" ]; then
+  if [ -n "${2:-}" ]; then
+    set -x
+    bats --show-output-of-passing-tests --print-output-on-failure --verbose-run -x "${@:2}"
+    set +x
+  else
+    set -x
+    bats --show-output-of-passing-tests --print-output-on-failure --verbose-run -x ./tests/{unit,integration}/
+    set +x
+  fi
+elif [ -n "${1:-}" ]; then
   set -x
   bats "${@}"
   set +x
@@ -37,6 +47,5 @@ else
   bats -r ./tests/{unit,integration}/
   set +x
 fi
-
 
 cd "${OLDPWD}" || exit 1

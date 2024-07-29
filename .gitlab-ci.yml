@@ -45,7 +45,7 @@ bats-tests:
   stage: test
   image: registry.gitlab.com/jtzero/git-cleanup-merged-pr-branches/gcmpb-build:latest
   script:
-    - . "${HOME}/.bashrc" && git checkout -b ci-integration-test && ./libexec/test
+    - . "${HOME}/.bashrc" && git checkout -b ci-integration-test && ./libexec/test ${BATS_ARGS}
 
 smoke-test-gitlab:
   stage: test
