@@ -17,9 +17,12 @@ OLDPWD="${PWD}"
 
 cd "${GCMPB_ROOT_DIR}" || exit 1
 
-git config --global --add safe.directory "${GCMPB_ROOT_DIR}"
-git config --global --add safe.directory "${GCMPB_ROOT_DIR}/tests/test_helper/bats-assert"
-git config --global --add safe.directory "${GCMPB_ROOT_DIR}/tests/test_helper/bats-support"
+if git config --global --get-all safe.directory | grep -q "${GCMPB_ROOT_DIR}/tests/test_helper/bats-support" ; then
+  git config --global --add safe.directory "${GCMPB_ROOT_DIR}"
+  git config --global --add safe.directory "${GCMPB_ROOT_DIR}/tests/test_helper/bats-assert"
+  git config --global --add safe.directory "${GCMPB_ROOT_DIR}/tests/test_helper/bats-support"
+fi
+
 git submodule init
 git submodule update
 
