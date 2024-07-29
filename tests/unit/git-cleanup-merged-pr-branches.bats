@@ -211,8 +211,11 @@ EOF
 
 @test "interactive_prune_tracking" {
   git() {
-    local remote_one="$(printf '%s' "${3}" | cut -d ' ' -f1)"
-    local remote_two="$(printf '%s' "${3}" | cut -d ' ' -f2)"
+    local -r remote_arg="${1}"
+    local -r action_arg="${2}"
+    local -r branches=("${@:3}")
+    local remote_one="${branches[1]}"
+    local remote_two="${branches[2]}"
     cat <<-EOF
 Pruning ${remote_one}
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
@@ -222,8 +225,8 @@ URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
  * [pruning] upstream/testing
 EOF
   }
-  local -r remotes_to_prune=('origin' 'upstream')
-  output="$(interactive_prune_tracking true "${remotes_to_prune[*]}" false <<<$(printf $'y\n'))"
+  local -r remotes=('origin' 'upstream')
+  output="$(interactive_prune_tracking true false "${remotes[@]}" <<<$(printf $'y\n'))"
   local -r expected="$(
     cat <<EOF
 Pruning origin
@@ -240,11 +243,21 @@ EOF
 @test "prune_tracking" {
   output=""
   git() {
-    output="${*}"
+    if [ "${1}" = "remote" ] && [ "${2}" = "prune" ]; then
+      git_prune "${@:3}"
+    fi
   }
-  remotes_to_prune=('origin' 'upstream')
-  prune_tracking "${remotes_to_prune[*]}"
-  assert_output 'remote prune origin upstream'
+  git_prune() {
+    local -r remotes=("$@")
+    if [[ "${1}" =~ \ |\' ]]; then
+      printf "fatal: '${1}' does not appear to be a git repository"
+      exit 1
+    fi
+    output="${remotes[@]}"
+  }
+  local -r remotes_arg=('origin' 'upstream')
+  prune_tracking "${remotes_arg[@]}"
+  assert_output 'origin upstream'
 }
 
 @test "get_decision_on_branch_with_pr_with_open_states" {

@@ -549,7 +549,7 @@ apply_plan() {
       fi
     done
     if [ "${#pruneable_remotes[@]}" -gt 0 ]; then
-      prune_tracking "${pruneable_remotes[*]}"
+      prune_tracking "${pruneable_remotes[@]}"
     fi
   fi
 }
@@ -583,28 +583,28 @@ apply_partial() {
       fi
     done
     if [ "${#pruneable_remotes[@]}" -gt 0 ]; then
-      interactive_prune_tracking "${verbose}" "${pruneable_remotes[*]}" "${force_interactive}"
+      interactive_prune_tracking "${verbose}" "${force_interactive}" "${pruneable_remotes[@]}"
     fi
   fi
 }
 
 interactive_prune_tracking() {
   local -r verbose="${1}"
-  local -r remotes_to_prune="${2}"
-  local -r force_interactive="${3:-true}"
+  local -r force_interactive="${2}"
+  local -r remotes_to_prune=("${@:3}")
   local prune
   prune="$(ask "prune tracking? (y/n)" "${force_interactive}")"
   readonly prune
   if [ "${prune}" = 'y' ]; then
-    prune_tracking "${remotes_to_prune}"
+    prune_tracking "${remotes_to_prune[@]}"
   else
     printverbose "${verbose}" "not deleting...${branch}"
   fi
 }
 
 prune_tracking() {
-  local -r remotes_to_prune="${1}"
-  git remote prune "${remotes_to_prune}"
+  local -r from_remotes=("$@")
+  git remote prune "${from_remotes[@]}"
 }
 
 delete_branches() {
