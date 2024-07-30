@@ -15,7 +15,9 @@ TMP_DIR="${ROOT_DIR}/tmp"
 
 VCS="${1:-gitlab}"
 
-docker image build -t gcmpb-build "${ROOT_DIR}/tests/"
+cp "${ROOT_DIR}/.tool-versions" "${ROOT_DIR}/tests/"
+
+docker image build --rm --no-cache -t gcmpb-build "${ROOT_DIR}/tests/"
 
 docker volume create gcmpb-asdf
 
