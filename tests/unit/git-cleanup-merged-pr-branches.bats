@@ -16,6 +16,7 @@ setup_file() {
 setup() {
   bats_load_library 'test_helper/bats-support' # this is required by bats-assert!
   bats_load_library 'test_helper/bats-assert'
+  bats_load_library 'test_helper/helper.sh'
   DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd)"
   ROOT_DIR="$(dirname "${BATS_TEST_LIB}")"
   . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
@@ -26,21 +27,10 @@ ensure_int() {
   exit 1
 }
 
-reset_head_state() {
-  local current_branch
-  current_branch="$(git branch --show-current)"
-  if [ "${ORIGINALLY_DETACHED}" = "false" ]; then
-    if [ "${current_branch}" != "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" ]; then
-      git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" >/dev/null
-    fi
-  elif [ "${ORIGINALLY_DETACHED}" = "true" ] && [ "${current_branch}" != "" ]; then
-    git checkout "${ORIGINAL_BRANCH_OR_DETACHED_COMMIT}" >/dev/null
-  fi
-}
-
 trap 'ensure_int' INT
 
 teardown() {
+  unset_git_override
   reset_head_state
 }
 
@@ -214,8 +204,8 @@ EOF
     local -r remote_arg="${1}"
     local -r action_arg="${2}"
     local -r branches=("${@:3}")
-    local remote_one="${branches[1]}"
-    local remote_two="${branches[2]}"
+    local remote_one="${branches[0]}"
+    local remote_two="${branches[1]}"
     cat <<-EOF
 Pruning ${remote_one}
 URL: git@gitlab.com:jtzero/git-cleanup-merged-pr-branches.git
