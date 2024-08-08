@@ -139,10 +139,25 @@ get_states() {
   local -r remote_with_branch="${1}"
   local -r branch="$(echo "${remote_with_branch}" | cut -d'/' -f2-)"
   local -r remote="$(echo "${remote_with_branch}" | cut -d'/' -f1)"
-  local owner_and_repo
-  owner_and_repo="$(git remote get-url --push "${remote}" | cut -d':' -f2 | cut -d'.' -f1)"
+  local owner_and_repo remote_url
+  remote_url="$(git remote get-url --push "${remote}")"
+  readonly remote_url
+  owner_and_repo="$(parse_remote_url "${remote_url}")"
   readonly owner_and_repo
+  if [ -z "${owner_and_repo}" ]; then
+    printerr "Could not parse owner and repo from remote url: ${remote_url}"
+    exit 1
+  fi
   gh pr list -R "${owner_and_repo}" --head "${branch}" --state all --json state,id
+}
+
+parse_remote_url() {
+  local -r remote_url="${1}"
+  if [[ "${remote_url}" =~ ^git@ ]]; then
+    printf '%s' "${remote_url}" | cut -d':' -f2 | cut -d'.' -f1
+  elif [[ "${remote_url}" =~ ^[a-z]+: ]]; then
+    printf '%s' "${remote_url}" | cut -d'/' -f4- | cut -d'.' -f1
+  fi
 }
 
 get_any_open_states() {
