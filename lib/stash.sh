@@ -23,13 +23,11 @@ get_orphaned_stashes() {
 
 delete_stashes_from_lines() {
   local -r ordered_orphaned_stashes="${1}"
-  local stash_numebrs=()
   while IFS= read -r stash; do
     local stash_no
     stash_no="$(stash_number_from_message "${stash}")"
-    stash_numbers+=("${stash_no}")
+    delete_stash "${stash_no}"
   done <<<"${orphaned_stashes}"
-  delete_stashes "${stash_numbers[@]}"
 }
 
 stash_number_from_message() {
@@ -42,6 +40,6 @@ stash_diff() {
   git stash show -p "${stash_ref}"
 }
 
-delete_stashes() {
-  git stash drop "$@"
+delete_stash() {
+  git stash drop "$1"
 }
