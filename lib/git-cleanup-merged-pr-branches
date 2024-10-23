@@ -123,7 +123,8 @@ get_branches() {
 
   if [[ "${current_remote_branch_parse}" == "fatal: no upstream configured for branch"* ]]; then
     local current_branch_with_remote=":${current_branch}"
-  elif [[ "${current_remote_branch_parse}" == "fatal: HEAD does not point to a branch"* ]]; then
+  elif [[ "${current_remote_branch_parse}" == "fatal: HEAD does not point to a branch"* ]] || \
+       [[ "${current_remote_branch_parse}" == "fatal: ambiguous argument '@{u}': unknown revision or path not in the working tree"* ]] ; then
     local current_branch_with_remote=" "
   else
     if [ "${get_current_branch_result}" = '0' ]; then
