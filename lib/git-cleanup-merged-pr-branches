@@ -89,6 +89,7 @@ should_run_on_first_move_to_newly_created_branch() {
   fi
 }
 
+# easiest way to do this is ignore_cleaning_branches=branch_name|origin/branch_name2
 ignore_cleaning_branches_config_value() {
   (config | grep 'ignore_cleaning_branches=' || [[ $? == 1 ]]) | head -n 1 | cut -d'=' -f2
 }
