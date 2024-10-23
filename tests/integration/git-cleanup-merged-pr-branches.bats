@@ -66,3 +66,40 @@ EOF
   local -r expected='warning_deleted_on_remote:local-branch:local-branch->remote-branch never had a pr, but was deleted on remote:[]'
   assert_output "${expected}"
 }
+
+@test "get_branches" {
+  . "${ROOT_DIR}/lib/git-cleanup-merged-pr-branches"
+  git() {
+    if [ "$1" = 'branch' ]; then
+      printf 'main'
+      exit 0
+    elif [ "$1" = 'rev-parse' ]; then
+      error=$(
+        cat <<'EOB'
+fatal: ambiguous argument '@{u}': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+@{u}
+EOB
+      )
+      printerr "${error}"
+      exit 1
+    elif [ "$1" = 'remote' ]; then
+      printf 'origin'
+      exit 0
+    elif [ "$1" = "ls-remote" ]; then
+      printf "%s\n%s" "ref: refs/heads/main	HEAD" "a7b98c321c1ab6054f7175aa5e85bb918800ed52	HEAD"
+      exit 0
+    elif [ "$1" = "for-each-ref" ]; then
+      printf 'origin/bashcov:bashcov
+:ci-integration-test
+origin/fix-invalid-delete_stashes-ref:fix-invalid-delete_stashes-ref
+origin/fix-stash-deletion:fix-stash-deletion
+origin/handle-ambiguous-parent:handle-ambiguous-parent
+origin/handle-pressing-when-no-stash:handle-pressing-when-no-stash
+origin/main:main'
+      exit 0
+    fi
+  }
+  get_branches
+}

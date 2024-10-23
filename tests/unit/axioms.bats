@@ -7,7 +7,6 @@ setup() {
   _ROOT_DIR="$(dirname "${BATS_TEST_LIB}")"
 }
 
-
 @test "this fails in bash < 5.2 and tested on 5.0.3" {
 
   run bash -c '
