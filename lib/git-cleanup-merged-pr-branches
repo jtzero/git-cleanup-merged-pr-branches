@@ -551,7 +551,9 @@ handle_plan() {
       delete_branches "${legacy_i}"
     fi
     delete_pruneable
-    delete_stashes_from_lines "${orphaned_stashes_delimited}"
+    if [ -n "${orphaned_stashes_delimited}" ]; then
+      delete_stashes_from_lines "${orphaned_stashes_delimited}"
+    fi
   elif [ "${apply}" = "p" ]; then
     apply_partial "${verbose}" "${force_interactive}" "${to_delete_delimited}" "${dangling_delimited}" "${orphaned_stashes_delimited}"
   fi
