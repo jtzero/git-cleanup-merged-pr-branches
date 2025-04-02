@@ -630,7 +630,7 @@ apply_partial() {
       response="$(ask "${stash}:delete? (y/n)" "${force_interactive}")"
     fi
     if [ "${response}" = "y" ]; then
-      delete_stashes "${stash_no}"
+      delete_stash "${stash_no}"
     else
       printverbose "${verbose}" "not deleting...${stash}"
     fi
