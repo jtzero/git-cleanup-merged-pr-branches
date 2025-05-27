@@ -221,7 +221,7 @@ set_get_all_remote_names() {
 
 GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET=false
 GIT_PRUNE_REMOTE_RESPONSE_CACHE=''
-detect_pruneable() {
+detect_pruneable_remote_branches() {
   if [ "${GIT_PRUNE_REMOTE_RESPONSE_CACHE_SET}" = "false" ]; then
     set_get_all_remote_names
     if [ -n "${GIT_ALL_REMOTE_NAMES[*]}" ]; then
@@ -310,7 +310,7 @@ clean_pr_merged_branches() {
   done
 
   local pruneable
-  pruneable="$(detect_pruneable)"
+  pruneable="$(detect_pruneable_remote_branches)"
   readonly pruneable
 
   local orphaned_stashes
@@ -552,7 +552,7 @@ handle_plan() {
     if [ -n "${legacy_i}" ]; then
       delete_branches "${legacy_i}"
     fi
-    delete_pruneable
+    prune_pruneable_remote_branches
     if [ -n "${orphaned_stashes_delimited}" ]; then
       delete_stashes_from_lines "${orphaned_stashes_delimited}"
     fi
@@ -566,25 +566,7 @@ apply_plan() {
   if [ "${#to_delete[@]}" -gt 0 ] && [[ ! "${to_delete[*]}" =~ ^[[:space:]]*$ ]]; then
     delete_branches "${to_delete[@]}"
   fi
-  delete_pruneable
-}
-
-delete_pruneable() {
-  local pruneable
-  pruneable="$(detect_pruneable)"
-  readonly pruneable
-  if [ -n "${pruneable}" ]; then
-    local pruneable_remotes=()
-    set_get_all_remote_names
-    for remote_name in "${GIT_ALL_REMOTE_NAMES[@]}"; do
-      if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
-        pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
-      fi
-    done
-    if [ "${#pruneable_remotes[@]}" -gt 0 ]; then
-      prune_tracking "${pruneable_remotes[@]}"
-    fi
-  fi
+  prune_pruneable_remote_branches
 }
 
 apply_partial() {
@@ -608,7 +590,7 @@ apply_partial() {
     fi
   done <<<"${to_delete}"$'\n'"${dangling}"
   local pruneable
-  pruneable="$(detect_pruneable)"
+  pruneable="$(detect_pruneable_remote_branches)"
   readonly pruneable
   if [ -n "${pruneable}" ]; then
     local pruneable_remotes=()
@@ -650,6 +632,24 @@ interactive_prune_tracking() {
     prune_tracking "${remotes_to_prune[@]}"
   else
     printverbose "${verbose}" "not deleting...${branch}"
+  fi
+}
+
+prune_pruneable_remote_branches() {
+  local pruneable
+  pruneable="$(detect_pruneable_remote_branches)"
+  readonly pruneable
+  if [ -n "${pruneable}" ]; then
+    local pruneable_remotes=()
+    set_get_all_remote_names
+    for remote_name in "${GIT_ALL_REMOTE_NAMES[@]}"; do
+      if printf '%s' "${pruneable}" | grep -q "would prune] ${remote_name}/"; then
+        pruneable_remotes[${#pruneable_remotes[@]}]="${remote_name}"
+      fi
+    done
+    if [ "${#pruneable_remotes[@]}" -gt 0 ]; then
+      prune_tracking "${pruneable_remotes[@]}"
+    fi
   fi
 }
 
