@@ -358,10 +358,17 @@ print_menu() {
     printf '%s\n' "${pruneable}" | grep -E '^\s\*'
   fi
   printf '%s' "${CLEAR_COLOR}"
+  printf '%s' "${YELLOW}"
+  # https://stackoverflow.com/questions/39191119/measure-count-objects-in-git-to-see-whether-i-am-close-to-auto-packing
+  # too_many_loose_objects
+  # git count-objects -H -v
+  # https://stackoverflow.com/questions/5137447/list-of-all-commands-that-cause-git-gc-auto/49216495#49216495
+  # warning: There are too many unreachable loose objects
+  printf '%s\n' "- $(git fsck --unreachable --no-reflogs 2>&1 | grep unreachable | wc -l) unreachable objects"
   while IFS= read -r line; do
     if [ -n "${line}" ]; then
       if [ "${dangling_index}" = "0" ]; then
-        printf '%s\n' "${YELLOW}The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
+        printf '%s\n' "The following were deleted on remote, but did not have a pr and will only be deleted if 'i' is entered"
       fi
       printf '%s\n' "- ${line}"
       ((++dangling_index))
@@ -552,6 +559,7 @@ handle_plan() {
     if [ -n "${legacy_i}" ]; then
       delete_branches "${legacy_i}"
     fi
+    prune_gc
     prune_pruneable_remote_branches
     if [ -n "${orphaned_stashes_delimited}" ]; then
       delete_stashes_from_lines "${orphaned_stashes_delimited}"
@@ -635,6 +643,9 @@ interactive_prune_tracking() {
   fi
 }
 
+# prune vs delete
+# prune is handing off to gfit to do the work
+# delete explicitly deleting
 prune_pruneable_remote_branches() {
   local pruneable
   pruneable="$(detect_pruneable_remote_branches)"
@@ -651,6 +662,10 @@ prune_pruneable_remote_branches() {
       prune_tracking "${pruneable_remotes[@]}"
     fi
   fi
+}
+
+prune_gc() {
+  git gc --prune
 }
 
 prune_tracking() {
@@ -681,7 +696,7 @@ interactive_help() {
   Interactive options: (case sensitive)
       y: yes
       n: no
-      i: include dangling, stashes
+      i: include dangling, stashes, gc prune
       p: partial, same as in `git add -p` https://git-scm.com/docs/git-add#Documentation/git-add.txt--p
     h,?: print this help
 EOS
