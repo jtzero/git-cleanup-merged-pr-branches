@@ -65,7 +65,7 @@ activate_last_active_github_user() {
 
 gh_auth_status() {
   set +e
-  local exit_code="0"
+  local exit_code="0", _status=""
   _status="$(gh auth status 2>&1)"
   exit_code="$?"
   if [ "${exit_code}" = "0" ]; then
@@ -94,6 +94,7 @@ pre_init_hook() {
   if [ "${GH_AUTH_LOGGED_IN_STATE}" = 'logged_in' ]; then
     user_has_pr_access
   fi
+  # TODO replace with GITHUB_TOKEN. gh cli will use GITHUB_TOKEN by default
   if [ "${GH_USER_HAS_PR_ACCESS}" = 'false' ] && [ -n "${GCMPB_GH_FILE_TOKEN}" ]; then
     gh auth login --with-token <"${GCMPB_GH_FILE_TOKEN}" && GH_AUTH_LOGGED_IN_STATE='logged_in' && user_has_pr_access
   fi

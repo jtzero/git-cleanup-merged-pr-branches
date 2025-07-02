@@ -28,6 +28,9 @@ else
   IS_BASH=1
 fi
 
+GCMPB_ROOT_DIR="$(dirname "${GCMPB_LIB_DIR}")"
+GCMPB_LIBEXEC_DIR="${GCMPB_ROOT_DIR}/libexec"
+
 RED=$'\e[0;31m'
 YELLOW=$'\e[1;33m'
 CLEAR_COLOR=$'\e[0m'
@@ -251,6 +254,33 @@ exit_if_platform_not_found() {
   fi
 }
 
+init() {
+  local -r platforms_directory="${1}"
+  local platforms_available
+  local platform_paths=()
+  local spinner_pid=""
+  if [ "${spinner}" = "true" ]; then
+    (
+      set +x
+      spin 'initializing...'
+    ) &
+    spinner_pid=$!
+    # shellcheck disable=SC2064
+    trap "kill_spinner_if_running '${spinner_pid}'" EXIT
+  fi
+
+  platforms_available="$(available_platforms "${platforms_directory}")"
+  readonly platforms_available
+  for remote_name in $(git remote); do
+    local platform_query_result='' platform=''
+    platform_query_result="$(query_vcs_platform "${remote_name}" "${platforms_available}")"
+    platform="$(cut -d':' -f2 <<<"${platform_query_result}")"
+    exit_if_platform_not_found "${platform_query_result}" "${platforms_directory}" "${spinner_pid}"
+    local platform_path="${platforms_directory}/${platform}"
+    bash "${platform_path}" init "${spinner_pid}"
+  done
+}
+
 clean_pr_merged_branches() {
   local branches_to_check="${1}"
   local -r platforms_directory="${2}"
@@ -283,6 +313,7 @@ clean_pr_merged_branches() {
 
     local platform_path="${platforms_directory}/${platform}.sh"
     platform_paths[${#platform_paths[@]}]="${platform_path}"
+    # TODO: needed?
     if [ "${platform_loaded}" != "${platform}" ]; then
       platform_loaded="${platform}"
     fi
@@ -689,7 +720,7 @@ EOS
 
 default_usage_string() {
   cat <<-'EOS'
-usage: git-cleanup-merged-pr-branches $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-pr-branches help'
+usage: git-cleanup-merged-pr-branches-git-hook $PREVIOUS_SHA $NEXT_SHA $BRANCHES_OR_FILES | git-cleanup-merged-pr-branches-git-hook [help]'
     All arguments are required however the first two can be empty strings.
     "...the ref of the previous HEAD, the ref of the new HEAD (which may or may not have changed), and a flag indicating whether the checkout was a branch checkout (changing branches, flag=1) or a file checkout (retrieving a file from the index, flag=0)."
     Further explanation of arguments is here https://git-scm.com/docs/githooks#_post_checkout
@@ -697,7 +728,8 @@ EOS
 }
 
 standalone_usage_string() {
-  printf "%s\n" "usage: git-cleanup-merged-pr-branches |  git-cleanup-merged-pr-branches help|--help|?|--?"
+  printf "%s\n" "usage: git-cleanup-merged-pr-branches [help|--help|?|--?] [init]"
+  printf "%s\n" "  init  sets up initial log in"
 }
 
 help() {
@@ -875,41 +907,47 @@ call() {
   local buffer_time_override="${9:-}"
   local manually_called="${10:-false}"
   local -r platforms_directory="${11:-"${GCMPB_LIB_DIR}/platforms"}"
+  local -r command="${12:-}"
   local interactive_rebase_in_progress=false
   local -r force_interactive=true
 
   if [ "$(is_in_git_repo)" = "true" ]; then
-    local branches_or_files
-    branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
-    readonly branches_or_files
-
-    if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
-      interactive_rebase_in_progress=true
-    fi
-
-    local ignore_cleaning_branches
-    ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
-    readonly ignore_cleaning_branches
-
-    if [ "${ignore_cleaning_branches}" != "" ]; then
-      printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
-    fi
-    local should_run_on_first_move_to_newly_created_branch_result
-    should_run_on_first_move_to_newly_created_branch_result="$(should_run_on_first_move_to_newly_created_branch)"
-    readonly should_run_on_first_move_to_newly_created_branch_result
-    local should_run_result
-    should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" \
-      "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" \
-      "${should_run_on_first_move_to_newly_created_branch_result}" "${buffer_time_override}" "${manually_called}")"
-    readonly should_run_result
-    local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
-    local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
-    if [ "${should_run_bool}" = "true" ]; then
-      local branches_to_check
-      branches_to_check="$(get_branches "${ignore_cleaning_branches}")"
-      clean_pr_merged_branches "${branches_to_check}" "${platforms_directory}" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
+    if [ "${command}" = "init" ]; then
+      # TODO: rectify
+      init "${GCMPB_LIBEXEC_DIR}/platforms"
     else
-      printverbose "${verbose}" "${should_not_run_reason}"
+      local branches_or_files
+      branches_or_files="$(branches_or_files_to_const "${branch_or_files_raw}")"
+      readonly branches_or_files
+
+      if find -L "$(git rev-parse --git-dir)" -mindepth 1 | grep -iE 'rebase.*interactive' >/dev/null 2>&1; then
+        interactive_rebase_in_progress=true
+      fi
+
+      local ignore_cleaning_branches
+      ignore_cleaning_branches="$(ignore_cleaning_branches_config_value)"
+      readonly ignore_cleaning_branches
+
+      if [ "${ignore_cleaning_branches}" != "" ]; then
+        printverbose "${verbose}" "Branches ignored from cleaning via config($(config_file_path)):${ignore_cleaning_branches}:"
+      fi
+      local should_run_on_first_move_to_newly_created_branch_result
+      should_run_on_first_move_to_newly_created_branch_result="$(should_run_on_first_move_to_newly_created_branch)"
+      readonly should_run_on_first_move_to_newly_created_branch_result
+      local should_run_result
+      should_run_result="$(should_run "${skip_cleanup_merged_pr_branches}" "${git_terminal_prompt_raw}" \
+        "${branches_or_files}" "${interactive_rebase_in_progress}" "${previous_sha}" "${next_sha}" \
+        "${should_run_on_first_move_to_newly_created_branch_result}" "${buffer_time_override}" "${manually_called}")"
+      readonly should_run_result
+      local -r should_run_bool="$(printf '%s' "${should_run_result}" | cut -d ':' -f1)"
+      local -r should_not_run_reason="$(printf '%s' "${should_run_result}" | cut -d ':' -f2)"
+      if [ "${should_run_bool}" = "true" ]; then
+        local branches_to_check
+        branches_to_check="$(get_branches "${ignore_cleaning_branches}")"
+        clean_pr_merged_branches "${branches_to_check}" "${platforms_directory}" "${auto_apply}" "${verbose}" "${force_interactive}" "${spinner}"
+      else
+        printverbose "${verbose}" "${should_not_run_reason}"
+      fi
     fi
   else
     printf '%s\n' 'cannot determine if in a git repo'

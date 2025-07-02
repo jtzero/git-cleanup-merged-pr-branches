@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+# TODO better way to handle this for now just skip to prevent issues
+if shopt | grep -q 'inherit_errexit'; then
+  shopt -s inherit_errexit
+fi
+
+if [ -z "${BASH_SOURCE[0]:-}" ]; then
+  # zsh
+  GCMPB_LIBEXEC_DIR="${0:A:h}"
+  # shellcheck disable=SC2034
+  IS_ZSH=1
+else
+  if ! command -v realpath >/dev/null 2>&1; then
+    exit 1
+  fi
+  GCMPB_LIBEXEC_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  # shellcheck disable=SC2034
+  IS_BASH=1
+fi
+
+GCMPB_ROOT_DIR="$(dirname "$(dirname "${GCMPB_LIBEXEC_DIR}")")"
+GCMPB_LIB_PLATFORMS_DIR="${GCMPB_ROOT_DIR}/lib/platforms"
+
+. "${GCMPB_LIB_PLATFORMS_DIR}/github.sh"
+
+COMMAND="${1}"
+
+case "${COMMAND}" in
+init)
+  set -x
+  pre_init_hook "${2}"
+  ;;
+*)
+  # TODO
+  exit 1
+  ;;
+esac
