@@ -1,4 +1,4 @@
-FROM docker.io/ruby:2.5
+FROM docker.io/ruby:3.0
 
 SHELL ["/bin/bash", "-c"]
 
