@@ -7,7 +7,7 @@ setup() {
   _ROOT_DIR="$(dirname "${BATS_TEST_LIB}")"
 }
 
-@test "this fails in bash < 5.2 and tested on 5.0.3" {
+@test "'local -r' is not local in bash < 5.1 and tested on 5.0.3 and 5.1.16" {
 
   run bash -c '
   run() {
@@ -22,9 +22,10 @@ setup() {
   IFS=. read -r major minor patch <<EOF
 $BASH_VERSION
 EOF
-  if [ "${major}" -le 5 ]; then
+  printf '%s\n' "Bash version:${major}.${minor}.${patch}"
+  if [ "${major}" -lt 5 ]; then
     assert_failure
-  elif [ "${major}" -eq 5 ] && [ "${minor}" -lt 2 ]; then
+  elif [ "${major}" -eq 5 ] && [ "${minor}" -lt 1 ]; then
     assert_failure
   else
     assert_success
