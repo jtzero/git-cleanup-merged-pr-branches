@@ -185,7 +185,13 @@ branch_was_deleted_remotely() {
   local -r branch="$(printf '%s' "${remote_with_branch}" | cut -d'/' -f2-)"
   load_cache "${remote}"
   if [ -z "${GH_DELETED_BRANCHES:-}" ]; then
-    GH_DELETED_BRANCHES="$(gh api 'repos/{owner}/{repo}/events' --jq '[.[] | select(.type=="DeleteEvent" and .payload.ref_type=="branch").payload.ref]')"
+    local result
+    result="$(gh api 'repos/{owner}/{repo}/events' --jq '[.[] | select(.type=="DeleteEvent" and .payload.ref_type=="branch").payload.ref]' 2>&1)"
+    if printf '%s' "${result}" | grep -q "invalid character '<' looking for beginning of value"; then
+      printf 'Github errored or is temporarily down.\n' >&2
+      exit 1
+    fi
+    GH_DELETED_BRANCHES="${result}"
   fi
   printf '%s' "${GH_DELETED_BRANCHES}" | jq '. | contains(["'"${branch}"'"])'
 }

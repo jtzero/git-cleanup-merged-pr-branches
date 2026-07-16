@@ -1,6 +1,8 @@
 #!/usr/bin/env bats
 #
 
+bats_require_minimum_version 1.5.0
+
 reset_head_state() {
   local current_branch
   current_branch="$(git branch --show-current)"
