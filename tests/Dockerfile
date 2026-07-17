@@ -8,8 +8,10 @@ COPY ./.tool-versions "./.tool-versions"
 
 RUN apt-get update -y && apt-get install -y gettext tree gcc unzip make autoconf ssh libz-dev xz-utils
 
-RUN curl -q 'https://proget.makedeb.org/debian-feeds/prebuilt-mpr.pub' | gpg --dearmor | tee /usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg 1>/dev/null
-RUN echo "deb [signed-by=/usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg] https://proget.makedeb.org prebuilt-mpr bullseye" | tee /etc/apt/sources.list.d/prebuilt-mpr.list
+RUN mkdir -p ./tmp
+
+RUN wget -P ./tmp 'https://gitlab.com/gitlab-org/cli/-/releases/v1.108.0/downloads/glab_1.108.0_linux_amd64.deb'
+RUN dpkg -i ./tmp/glab_1.108.0_linux_amd64.deb
 
 RUN type -p curl >/dev/null || apt install curl -y
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
