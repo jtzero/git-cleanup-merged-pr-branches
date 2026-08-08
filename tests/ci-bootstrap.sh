@@ -28,7 +28,9 @@ standardize_git_repo() {
   cwd="${1}"
   git config --global core.pager ""
 
-  git config --global --add safe.directory "${cwd}"
+  if ! git config --get-all safe.directory | grep -Fq "${cwd}"; then
+    git config --add safe.directory "${cwd}"
+  fi
 
   # change existing remote to prevent unexpected side-effects
   git remote rename origin ci
