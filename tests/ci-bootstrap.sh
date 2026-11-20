@@ -131,6 +131,7 @@ printf '\n=======RUNNING ON HOOK\n'
 GCMPB_AUTO_APPLY=true GCMPB_DEBUG=true git checkout - 2>&1 | tee /tmp/result || true
 set +x
 result="$(</tmp/result)"
+ls -la "${SET_X_RUNNING_COMMAND_LOG}"
 printf '\n=======DEBUG_RUNNING_ON_HOOK\n%s\n=======DEBUG_RUNNING_ON_HOOK_END\n' "$(<"${SET_X_RUNNING_COMMAND_LOG}")"
 printf '\n=======HOOK_RESULT\n%s\n=======HOOK_RESULT_END\n' "${result}"
 if [[ "${result}" == *"Deleted branch integration-test"* ]]; then
