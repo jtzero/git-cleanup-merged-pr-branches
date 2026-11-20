@@ -1,6 +1,10 @@
-FROM docker.io/ruby:3.0
+FROM docker.io/ruby:4.0
+
+ARG HOST_ARCH
 
 SHELL ["/bin/bash", "-c"]
+
+RUN test -n "$HOST_ARCH" || (echo "Error: HOST_ARCH is required" >&2; exit 1)
 
 WORKDIR "/root"
 
@@ -10,8 +14,8 @@ RUN apt-get update -y && apt-get install -y gettext tree gcc unzip make autoconf
 
 RUN mkdir -p ./tmp
 
-RUN wget -P ./tmp 'https://gitlab.com/gitlab-org/cli/-/releases/v1.108.0/downloads/glab_1.108.0_linux_amd64.deb'
-RUN dpkg -i ./tmp/glab_1.108.0_linux_amd64.deb
+RUN wget -P ./tmp "https://gitlab.com/gitlab-org/cli/-/releases/v1.108.0/downloads/glab_1.108.0_linux_${HOST_ARCH}.deb"
+RUN dpkg -i "./tmp/glab_1.108.0_linux_${HOST_ARCH}.deb"
 
 RUN type -p curl >/dev/null || apt install curl -y
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \

@@ -37,7 +37,6 @@
   - Ubuntu/Debian: `apt-get install coreutils`
 
 ## git >= 2.22.0
-  - asdf: `asdf plugin add git && asdf install git 2.22.0`
   - mac: `brew install git`
   - Ubuntu/Debian: `apt install git`
 
