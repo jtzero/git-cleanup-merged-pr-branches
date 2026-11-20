@@ -17,7 +17,8 @@ VCS="${1:-gitlab}"
 
 cp "${ROOT_DIR}/.tool-versions" "${ROOT_DIR}/tests/"
 
-docker image build --rm --no-cache -t gcmpb-build "${ROOT_DIR}/tests/"
+export PUSH=false
+"${LIBEXEC_DIR}/docker-build.sh"
 
 docker volume create gcmpb-asdf
 
