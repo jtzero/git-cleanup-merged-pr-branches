@@ -157,7 +157,7 @@ pre_init_hook() {
           ask_for_pat "${AZ_CONFIG_HOME}"
         )
         AZURE_DEVOPS_EXT_PAT="$(<"${AZ_CONFIG_HOME}/token")"
-        az devops login | exit 1
+        printf "%s\n" "${AZURE_DEVOPS_EXT_PAT}" | az devops login || exit 1
       else
         az login || exit 1
       fi
