@@ -98,7 +98,7 @@ export BASH_XTRACEFD=7
 set_up_asdf "${ROOT_DIR}"
 
 standardize_git_repo "${ROOT_DIR}"
-
+git remote -v
 set -x
 
 #DEBUG
