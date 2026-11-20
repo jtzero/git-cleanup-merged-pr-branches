@@ -142,6 +142,7 @@ pre_init_hook() {
       if kill -s 0 "${spinner_pid}" >/dev/null 2>&1; then
         kill -TSTP "${spinner_pid}"
         retore_spinner="true"
+        printf '\r\033[K' >/dev/tty
       fi
       local options=("PAT" "AZ Web SSO")
       (
