@@ -39,7 +39,7 @@ standardize_git_repo() {
 }
 
 set_up_gitlab() {
-  git remote add origin "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git"
+  git remote add origin "https://gitlab.com/jtzero/git-cleanup-merged-pr-branches.git"
 }
 
 set_up_github() {
@@ -64,7 +64,7 @@ set_up_azure() {
   mkdir -p "${home_dir}/.ssh"
   ssh-keyscan -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
   ssh-keyscan -t rsa -H ssh.dev.azure.com >>"${home_dir}/.ssh/known_hosts"
-  git remote add origin "https://jtzero:${AZURE_DEVOPS_EXT_PAT}@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
+  git remote add origin "https://dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
 }
 
 set_up_hook() {

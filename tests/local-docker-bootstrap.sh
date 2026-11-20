@@ -20,19 +20,4 @@ cd testing-dir || exit 1
 
 git remote | xargs -n1 git remote remove
 
-# TODO why doesn't this use the public ?
-if [ "${VCS}" = 'gitlab' ]; then
-  git remote add origin \
-    "https://local-testing:$(cat "${PWD}/tmp/LOCAL_TESTING_DEPLOY_TOKEN")@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git"
-elif [ "${VCS}" = 'azure' ]; then
-  git remote add origin \
-    "https://jtzero@dev.azure.com/jtzero/git-cleanup-merged-pr-branches/_git/git-cleanup-merged-pr-branches"
-elif [ "${VCS}" = 'github' ]; then
-  git remote add origin \
-    "https://github.com/jtzero/git-cleanup-merged-pr-branches.git"
-else
-  printerr "Invalid VCS: \`${VCS}'"
-  exit 1
-fi
-
 bash "${PWD}/tests/ci-bootstrap.sh"

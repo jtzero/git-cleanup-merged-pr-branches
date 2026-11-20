@@ -97,7 +97,7 @@ clone-test:
   variables:
     GIT_STRATEGY: none
   script:
-    - git clone "https://CI:${GCMPB_GL_TOKEN}@gitlab.com/jtzero/git-cleanup-merged-pr-branches.git" "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable && mkdir -p "${XDG_CONFIG_HOME:-${HOME}/.config}/git/hooks" && git config --global core.hooksPath "${XDG_CONFIG_HOME:-${HOME}/.config}/git/hooks" && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${XDG_CONFIG_HOME:-${HOME}/.config}/git/hooks/post-checkout"
+    - git clone "https://gitlab.com/jtzero/git-cleanup-merged-pr-branches.git" "${HOME}/.local/git-cleanup-merged-pr-branches" --branch stable && mkdir -p "${XDG_CONFIG_HOME:-${HOME}/.config}/git/hooks" && git config --global core.hooksPath "${XDG_CONFIG_HOME:-${HOME}/.config}/git/hooks" && ln -nfs "${HOME}/.local/git-cleanup-merged-pr-branches/bin/git-cleanup-merged-pr-branches-git-hook" "${XDG_CONFIG_HOME:-${HOME}/.config}/git/hooks/post-checkout"
 
 cleanup:
   stage: cleanup
